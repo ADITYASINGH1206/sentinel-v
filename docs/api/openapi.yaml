@@ -1,0 +1,661 @@
+openapi: 3.1.0
+info:
+  title: SENTINEL-V Video Screening API
+  description: Calibrated, auditable video deepfake screening service on the S-MSDT
+    detector family.
+  version: 1.0.0
+paths:
+  /healthz:
+    get:
+      tags:
+      - Health
+      summary: Healthz
+      operationId: healthz_healthz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /readyz:
+    get:
+      tags:
+      - Health
+      summary: Readyz
+      operationId: readyz_readyz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /v1/analyses:
+    post:
+      tags:
+      - Analyses
+      summary: Create Analysis
+      operationId: create_analysis_v1_analyses_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisCreate'
+        required: true
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Create Analysis V1 Analyses Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/analyses/{analysis_id}:
+    get:
+      tags:
+      - Analyses
+      summary: Get Analysis
+      operationId: get_analysis_v1_analyses__analysis_id__get
+      parameters:
+      - name: analysis_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Analysis Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analysis'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/receipts/{receipt_id}:
+    get:
+      tags:
+      - Receipts
+      summary: Get Receipt
+      operationId: get_receipt_v1_receipts__receipt_id__get
+      parameters:
+      - name: receipt_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Receipt Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/receipts/verify:
+    post:
+      tags:
+      - Receipts
+      summary: Verify Receipt Endpoint
+      operationId: verify_receipt_endpoint_v1_receipts_verify_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: true
+              type: object
+              title: Payload
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/review-queue:
+    get:
+      tags:
+      - Reviews
+      summary: Get Review Queue
+      operationId: get_review_queue_v1_review_queue_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /v1/review-queue/claim-next:
+    post:
+      tags:
+      - Reviews
+      summary: Claim Next
+      operationId: claim_next_v1_review_queue_claim_next_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /v1/reviews/{analysis_id}:
+    post:
+      tags:
+      - Reviews
+      summary: Submit Review
+      operationId: submit_review_v1_reviews__analysis_id__post
+      parameters:
+      - name: analysis_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Analysis Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /compat/moderate/video:
+    post:
+      tags:
+      - SENTINEL Compatibility
+      summary: Moderate Video Compat
+      operationId: moderate_video_compat_compat_moderate_video_post
+      parameters:
+      - name: x-internal-key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Internal-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompatVideoRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompatVideoResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Analysis:
+      properties:
+        id:
+          type: string
+          title: Id
+        status:
+          $ref: '#/components/schemas/AnalysisStatus'
+        media:
+          anyOf:
+          - $ref: '#/components/schemas/MediaInfo'
+          - type: 'null'
+        policy:
+          additionalProperties: true
+          type: object
+          title: Policy
+        decision:
+          anyOf:
+          - $ref: '#/components/schemas/DecisionBand'
+          - type: 'null'
+        inconclusive_reason:
+          anyOf:
+          - $ref: '#/components/schemas/InconclusiveReason'
+          - type: 'null'
+        scores:
+          anyOf:
+          - $ref: '#/components/schemas/ScoresSummary'
+          - type: 'null'
+        cascade:
+          anyOf:
+          - $ref: '#/components/schemas/CascadeInfo'
+          - type: 'null'
+        tracks:
+          items:
+            $ref: '#/components/schemas/TrackResult'
+          type: array
+          title: Tracks
+        signals:
+          additionalProperties: true
+          type: object
+          title: Signals
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+        models:
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
+          title: Models
+        timings_ms:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Timings Ms
+        receipt_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Receipt Id
+        review_status:
+          type: string
+          title: Review Status
+          default: not_required
+        cache_hit:
+          type: boolean
+          title: Cache Hit
+          default: false
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        pipeline_version:
+          type: string
+          title: Pipeline Version
+          default: unknown
+        mock:
+          type: boolean
+          title: Mock
+          default: false
+      type: object
+      required:
+      - id
+      - status
+      - policy
+      title: Analysis
+    AnalysisCreate:
+      properties:
+        policy_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Policy Id
+        prior_prevalence:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Prior Prevalence
+          default: 0.01
+        mode:
+          type: string
+          title: Mode
+          default: auto
+        explain_gradcam:
+          type: boolean
+          title: Explain Gradcam
+          default: false
+        skip_cache:
+          type: boolean
+          title: Skip Cache
+          default: false
+        external_ref:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Ref
+        webhook_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Url
+        source_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Url
+      type: object
+      title: AnalysisCreate
+    AnalysisStatus:
+      type: string
+      enum:
+      - queued
+      - processing
+      - completed
+      - failed
+      title: AnalysisStatus
+    CascadeInfo:
+      properties:
+        stage1_model:
+          type: string
+          title: Stage1 Model
+        stage1_p_bal:
+          type: number
+          title: Stage1 P Bal
+        stage2_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stage2 Model
+        exited_early:
+          type: boolean
+          title: Exited Early
+          default: false
+      type: object
+      required:
+      - stage1_model
+      - stage1_p_bal
+      title: CascadeInfo
+    ClipScore:
+      properties:
+        k:
+          type: integer
+          title: K
+        start_frame:
+          type: integer
+          title: Start Frame
+        end_frame:
+          type: integer
+          title: End Frame
+        start_s:
+          type: number
+          title: Start S
+        p:
+          type: number
+          title: P
+      type: object
+      required:
+      - k
+      - start_frame
+      - end_frame
+      - start_s
+      - p
+      title: ClipScore
+    CompatVideoRequest:
+      properties:
+        post_id:
+          type: string
+          title: Post Id
+        video_url:
+          type: string
+          title: Video Url
+      type: object
+      required:
+      - post_id
+      - video_url
+      title: CompatVideoRequest
+    CompatVideoResponse:
+      properties:
+        status:
+          type: string
+          title: Status
+        labels:
+          items:
+            type: string
+          type: array
+          title: Labels
+        deepfake_confidence:
+          type: number
+          title: Deepfake Confidence
+        deepfake_model_version:
+          type: string
+          title: Deepfake Model Version
+        disclosed_ai_content:
+          type: boolean
+          title: Disclosed Ai Content
+        review_required:
+          type: boolean
+          title: Review Required
+        analysis_id:
+          type: string
+          title: Analysis Id
+        receipt_id:
+          type: string
+          title: Receipt Id
+        report_url:
+          type: string
+          title: Report Url
+      type: object
+      required:
+      - status
+      - labels
+      - deepfake_confidence
+      - deepfake_model_version
+      - disclosed_ai_content
+      - review_required
+      - analysis_id
+      - receipt_id
+      - report_url
+      title: CompatVideoResponse
+    DecisionBand:
+      type: string
+      enum:
+      - likely_authentic
+      - needs_review
+      - likely_manipulated
+      - inconclusive
+      title: DecisionBand
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InconclusiveReason:
+      type: string
+      enum:
+      - NO_FACE
+      - FACE_TOO_SMALL
+      - TOO_FEW_FRAMES
+      - DECODE_FAILURE
+      title: InconclusiveReason
+    MediaInfo:
+      properties:
+        id:
+          type: string
+          title: Id
+        sha256:
+          type: string
+          title: Sha256
+        duration_s:
+          type: number
+          title: Duration S
+        width:
+          type: integer
+          title: Width
+        height:
+          type: integer
+          title: Height
+        fps:
+          type: number
+          title: Fps
+        codec:
+          type: string
+          title: Codec
+        container:
+          type: string
+          title: Container
+        deleted:
+          type: boolean
+          title: Deleted
+          default: false
+      type: object
+      required:
+      - id
+      - sha256
+      - duration_s
+      - width
+      - height
+      - fps
+      - codec
+      - container
+      title: MediaInfo
+    ReviewCreate:
+      properties:
+        decision:
+          $ref: '#/components/schemas/ReviewDecision'
+        reasons:
+          items:
+            type: string
+          type: array
+          title: Reasons
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        confidence:
+          type: integer
+          maximum: 5.0
+          minimum: 1.0
+          title: Confidence
+        telemetry:
+          additionalProperties: true
+          type: object
+          title: Telemetry
+        study_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Study Id
+      type: object
+      required:
+      - decision
+      - confidence
+      title: ReviewCreate
+    ReviewDecision:
+      type: string
+      enum:
+      - authentic
+      - manipulated
+      - cannot_tell
+      title: ReviewDecision
+    ScoresSummary:
+      properties:
+        u:
+          type: number
+          title: U
+        p_bal:
+          type: number
+          title: P Bal
+        p_prior:
+          type: number
+          title: P Prior
+        prior_prevalence:
+          type: number
+          title: Prior Prevalence
+        ppv_estimate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Ppv Estimate
+      type: object
+      required:
+      - u
+      - p_bal
+      - p_prior
+      - prior_prevalence
+      title: ScoresSummary
+    TrackResult:
+      properties:
+        track_idx:
+          type: integer
+          title: Track Idx
+        n_frames:
+          type: integer
+          title: N Frames
+        u:
+          type: number
+          title: U
+        p_bal:
+          type: number
+          title: P Bal
+        decisive:
+          type: boolean
+          title: Decisive
+        clips:
+          items:
+            $ref: '#/components/schemas/ClipScore'
+          type: array
+          title: Clips
+      type: object
+      required:
+      - track_idx
+      - n_frames
+      - u
+      - p_bal
+      - decisive
+      title: TrackResult
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

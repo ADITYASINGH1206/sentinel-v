@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sv_engine"
+version = "0.1.0"
+description = "SENTINEL-V Deepfake Detection Engine & Adapters"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "sv_core",
+    "numpy>=1.26.0",
+    "scipy>=1.12.0",
+    "pyyaml>=6.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

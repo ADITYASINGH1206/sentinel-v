@@ -1,0 +1,25 @@
+services:
+  worker-gpu:
+    build:
+      context: ..
+      dockerfile: infra/docker/worker-gpu.Dockerfile
+    container_name: sv-worker-gpu
+    environment:
+      SV_ENV: dev
+      SV_ENGINE_MODE: real
+      SV_DATABASE_URL: postgresql+asyncpg://sv:sv@postgres:5432/sv
+      SV_REDIS_URL: redis://redis:6379/0
+      SV_S3_ENDPOINT: http://minio:9000
+      NVIDIA_VISIBLE_DEVICES: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ../models:/models:ro
+    depends_on:
+      - redis
+      - minio

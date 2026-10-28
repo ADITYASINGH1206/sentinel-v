@@ -1,0 +1,14 @@
+# SPEC §15.2 E4 Perturbation Chains
+chains:
+  crf_28:
+    cmd: "ffmpeg -i {input} -c:v libx264 -crf 28 -preset fast -c:a copy {output}"
+  crf_35:
+    cmd: "ffmpeg -i {input} -c:v libx264 -crf 35 -preset fast -c:a copy {output}"
+  downscale_480p:
+    cmd: "ffmpeg -i {input} -vf scale=-2:480 -c:v libx264 -crf 23 -c:a copy {output}"
+  fps_15:
+    cmd: "ffmpeg -i {input} -r 15 -c:v libx264 -crf 23 -c:a copy {output}"
+  messaging_app:
+    cmd: "ffmpeg -i {input} -vf 'scale=640:-2,unsharp=5:5:0.3' -c:v libx264 -crf 28 -c:a copy {output}"
+  screen_capture:
+    cmd: "ffmpeg -i {input} -vf 'scale=iw*0.9:ih*0.9,eq=gamma=1.1,noise=alls=2:allf=t' -c:v libx264 -crf 26 -c:a copy {output}"

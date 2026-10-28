@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl build-essential ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY packages/ /app/packages/
+COPY services/workers/ /app/services/workers/
+
+RUN pip install --no-cache-dir \
+    -e /app/packages/sv_core \
+    -e /app/packages/sv_engine \
+    -e /app/packages/sv_fusion \
+    -e /app/packages/sv_receipts \
+    -e /app/services/workers
+
+CMD ["celery", "-A", "sv_workers.celery_app", "worker", "--loglevel=INFO", "-Q", "ingest,preprocess,finalize,anchor,monitor"]

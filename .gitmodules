@@ -1,0 +1,3 @@
+[submodule "third_party/smsdt"]
+	path = third_party/smsdt
+	url = https://github.com/sharadpolackalsunil/DeepFake.git

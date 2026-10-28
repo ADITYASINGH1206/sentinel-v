@@ -1,0 +1,21 @@
+{
+  "model_id": "smsdt-st-b",
+  "method": "platt_class_balanced",
+  "a": 0.6470,
+  "b": -0.5865,
+  "youden_tau_p_bal": 0.7507,
+  "fit_split": "val",
+  "fit_set": {
+    "n_real": 260,
+    "n_fake": 1164,
+    "sources": [
+      "ffpp_c23_val",
+      "dfd_val"
+    ]
+  },
+  "k_clips": 8,
+  "t_frames": 8,
+  "fitted_at": "2026-10-28T21:00:00Z",
+  "fitted_by": "tools/fit_calibration.py",
+  "input_scores_sha256": "placeholder_sha"
+}
