@@ -84,19 +84,29 @@ Produce a comprehensive GitHub Markdown review with these exact sections:
 """
 
 
-def get_pr_diff() -> str:
+def get_pr_diff(pr_number: str = None) -> str:
     """Get filtered git diff for the pull request."""
-    # In GitHub Actions, compare target branch with current HEAD
-    base_ref = os.environ.get("GITHUB_BASE_REF", "main")
-    cmd = ["git", "diff", f"origin/{base_ref}...HEAD"]
+    raw_diff = ""
     
-    try:
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        raw_diff = res.stdout
-    except Exception as e:
-        print(f"Warning: git diff command failed: {e}. Trying fallback...")
-        res = subprocess.run(["git", "diff", "HEAD~1...HEAD"], capture_output=True, text=True)
-        raw_diff = res.stdout
+    # 1. First try gh pr diff if pr_number is known
+    if pr_number:
+        try:
+            res = subprocess.run(["gh", "pr", "diff", str(pr_number)], capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout.strip():
+                raw_diff = res.stdout
+        except Exception:
+            pass
+
+    # 2. Fall back to git diff against base branch
+    if not raw_diff:
+        base_ref = os.environ.get("GITHUB_BASE_REF", "main")
+        cmd = ["git", "diff", f"origin/{base_ref}...HEAD"]
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            raw_diff = res.stdout
+        except Exception as e:
+            res = subprocess.run(["git", "diff", "HEAD~1...HEAD"], capture_output=True, text=True)
+            raw_diff = res.stdout
 
     if not raw_diff.strip():
         return "No diff detected."
@@ -221,7 +231,7 @@ def main():
         sys.exit(1)
 
     print(f"Reviewing PR #{pr_number}: '{pr_title}' by @{pr_author}...")
-    diff = get_pr_diff()
+    diff = get_pr_diff(pr_number)
     
     if diff == "No diff detected.":
         print("No changes found in diff to review.")
@@ -240,8 +250,14 @@ def main():
     footer = "\n\n---\n*Automated review by SENTINEL-V Gemini Bot &bull; Powered by Google Gemini API*"
     full_comment = review + footer
 
-    post_github_comment(pr_number, full_comment)
+    if os.environ.get("DRY_RUN", "false").lower() in ("true", "1", "yes"):
+        print("\n=== DRY RUN REVIEW OUTPUT ===")
+        print(full_comment)
+        print("=== END DRY RUN ===")
+    else:
+        post_github_comment(pr_number, full_comment)
 
 
 if __name__ == "__main__":
     main()
+

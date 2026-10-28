@@ -35,3 +35,4 @@ To adjust or add project-specific review instructions (e.g. strict mypy standard
    ```bash
    GEMINI_API_KEY=... python3 scripts/gemini_pr_reviewer.py
    ```
+
