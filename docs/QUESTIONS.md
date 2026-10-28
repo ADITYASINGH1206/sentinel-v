@@ -12,3 +12,4 @@ This document tracks items requiring human intervention or external access, alon
 | **B6** | Ethics board approval & reviewer recruitment for E10 human study | PI / Institution | Reviewer trial execution | Build full study mode into console; defer live participant execution | OPEN |
 | **B7** | Testnet deployer private key & RPC endpoint (Sepolia / Amoy) | DevOps / Web3 team | Live chain anchoring | Run local Anvil node in CI; disable live anchor worker if unset | OPEN |
 | **B8** | Formal permission from SENTINEL repository maintainers | SENTINEL maintainers | Upstream pull request | All integration code kept self-contained in `integrations/sentinel/` as a patch | OPEN |
+

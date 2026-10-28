@@ -63,3 +63,4 @@ This file records all architectural and design decisions made for SENTINEL-V in 
   - **Stream A (ML & Data Forensics):** Assigned to @sharadpolackalsunil. Covers preprocessing, model adapters, calibration, evidence heat-maps, drift detection, and the Paper B evaluation suite.
   - **Stream B (Systems, Full-Stack & Web3):** Assigned to @AdityaRaj1304. Covers core monorepo infra, FastAPI service, Celery task pipelines, reviewer console SPA, Merkle anchoring contracts, and SENTINEL adapters.
 - **Consequences:** Clear task ownership, independent pull requests, and parallel velocity.
+

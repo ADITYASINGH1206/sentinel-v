@@ -27,3 +27,4 @@ export function validateCopy(text: string): { valid: boolean; violation?: string
     }
     return { valid: true };
 }
+

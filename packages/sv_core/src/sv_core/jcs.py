@@ -39,3 +39,4 @@ def canonicalize_json(data: Any) -> bytes:
             raise TypeError(f"Type {type(obj)} not serializable in RFC 8785")
 
     return serialize(data).encode("utf-8")
+

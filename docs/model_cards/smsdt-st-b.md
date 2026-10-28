@@ -28,3 +28,4 @@
 - **Parameters:** $a = 0.6470$, $b = -0.5865$
 - **Youden Threshold ($\tau^*$):** $0.7507$
 - **Fit Set:** FF++ c23 validation ($N_{\text{real}}=260$, $N_{\text{fake}}=1164$) + DFD validation
+

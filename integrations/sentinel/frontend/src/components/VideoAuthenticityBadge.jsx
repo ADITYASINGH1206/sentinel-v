@@ -39,3 +39,4 @@ export default function VideoAuthenticityBadge({ status, score, reportUrl }) {
         </div>
     );
 }
+

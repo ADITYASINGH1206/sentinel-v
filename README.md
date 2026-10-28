@@ -47,7 +47,20 @@ SENTINEL-V is a video deepfake screening platform and reviewer console built on 
 
 ```
 ├── AGENTS.md                  # Autonomous agent instructions & rules
-├── docs/                      # Specification, ADRs, blockers, and milestone logs
+├── docs/                      # Specification, ADRs, blockers, architecture, and developer guide
+│   ├── SPEC.md                # Authoritative Build Specification v1.0
+│   ├── SENTINEL-V_Build_Spec.md # Verbatim build specification reference
+│   ├── ARCHITECTURE.md        # Deep subsystem architecture & data flows
+│   ├── CONTRIBUTING.md        # Contributor workflow & parallel stream rules
+│   ├── DECISIONS.md           # Architecture Decision Records (ADRs)
+│   └── QUESTIONS.md           # Blocker tracking log (B1–B8)
+├── skills/                    # Specialized agent & developer skills
+│   ├── parity-verification/   # S-MSDT numerical equivalence checks (§6.9)
+│   ├── model-bundle-builder/  # Immutable bundle builder & safetensors converter
+│   ├── paper-b-evaluation/    # Paper B evaluation harness & experiment runners
+│   ├── receipts-and-anchoring/# RFC 8785 JCS, Ed25519 signing & EVM anchoring
+│   ├── sentinel-integration/  # Additive SENTINEL integration & webhook signing
+│   └── reviewer-console-engineering/ # React console, canvas overlay & keyboard UX
 ├── packages/
 │   ├── sv_core/               # Shared settings, schemas, errors, canonical JSON
 │   ├── sv_engine/             # Preprocessing, S-MSDT adapters, calibration, evidence
@@ -125,3 +138,20 @@ SENTINEL-V is built concurrently across two parallel workstreams:
   - Security hardening, SSRF sandboxing, and load testing (M11)
 
 See [GitHub Issues](https://github.com/ADITYASINGH1206/sentinel-v/issues) for detailed task specifications and acceptance criteria.
+
+---
+
+## Agent & Developer Skills
+
+The repository includes curated, executable skill modules under `skills/` designed to provide deep procedural knowledge for both coding agents and human engineers:
+
+| Skill | Path | Description & Scope |
+|---|---|---|
+| **Parity Verification** | [`skills/parity-verification/`](skills/parity-verification/SKILL.md) | Step-by-step verification protocol for GPU inference parity ($|\Delta u| \le 0.05$, SSIM $\ge 0.98$). |
+| **Model Bundle Builder** | [`skills/model-bundle-builder/`](skills/model-bundle-builder/SKILL.md) | Safetensors conversion, offline CLIP backbone export, Platt calibration fitting, and checksum generation. |
+| **Paper B Evaluation** | [`skills/paper-b-evaluation/`](skills/paper-b-evaluation/SKILL.md) | Reproducible execution of experiments E1–E12, dataset manifests, and publication figure plotting. |
+| **Receipts & EVM Anchoring** | [`skills/receipts-and-anchoring/`](skills/receipts-and-anchoring/SKILL.md) | RFC 8785 canonical JSON, Ed25519 signatures, Merkle trees, and Foundry `ReceiptAnchor.sol` anchoring. |
+| **SENTINEL Integration** | [`skills/sentinel-integration/`](skills/sentinel-integration/SKILL.md) | Purely additive integration adapter, webhook HMAC validation, and locked-file preservation. |
+| **Reviewer Console Engineering** | [`skills/reviewer-console-engineering/`](skills/reviewer-console-engineering/SKILL.md) | Canvas heat-map synchronization via `requestVideoFrameCallback`, keyboard shortcuts, and WCAG 2.2 AA. |
+
+

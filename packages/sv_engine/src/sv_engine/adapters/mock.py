@@ -51,3 +51,4 @@ class MockDetectorAdapter(DetectorAdapter):
 
     def warmup(self) -> None:
         pass
+

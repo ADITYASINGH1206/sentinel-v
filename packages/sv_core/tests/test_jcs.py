@@ -23,3 +23,4 @@ def test_jcs_hashing_stability():
     canonical = canonicalize_json(payload)
     digest = sha256_bytes(canonical)
     assert len(digest) == 64
+

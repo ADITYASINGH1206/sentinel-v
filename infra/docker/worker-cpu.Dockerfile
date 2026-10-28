@@ -17,3 +17,4 @@ RUN pip install --no-cache-dir \
     -e /app/services/workers
 
 CMD ["celery", "-A", "sv_workers.celery_app", "worker", "--loglevel=INFO", "-Q", "ingest,preprocess,finalize,anchor,monitor"]
+

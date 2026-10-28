@@ -34,3 +34,4 @@ async def verify_receipt_endpoint(payload: Dict[str, Any]):
             {"name": "model_registry", "status": "pass", "detail": "Active model bundle verified"}
         ]
     }
+

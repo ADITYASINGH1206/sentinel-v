@@ -5,3 +5,4 @@ from sv_workers.celery_app import celery_app
 def run_finalize(analysis_id: str):
     """Task: Calibrate, apply policy band, fuse signals, sign detection receipt, dispatch webhooks."""
     return {"analysis_id": analysis_id, "status": "completed"}
+

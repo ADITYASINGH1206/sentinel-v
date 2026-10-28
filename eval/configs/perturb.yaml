@@ -12,3 +12,4 @@ chains:
     cmd: "ffmpeg -i {input} -vf 'scale=640:-2,unsharp=5:5:0.3' -c:v libx264 -crf 28 -c:a copy {output}"
   screen_capture:
     cmd: "ffmpeg -i {input} -vf 'scale=iw*0.9:ih*0.9,eq=gamma=1.1,noise=alls=2:allf=t' -c:v libx264 -crf 26 -c:a copy {output}"
+

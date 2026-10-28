@@ -22,3 +22,4 @@ def scan_files(directories):
 
 if __name__ == "__main__":
     sys.exit(scan_files(sys.argv[1:]))
+

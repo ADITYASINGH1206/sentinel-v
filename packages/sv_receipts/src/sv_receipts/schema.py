@@ -29,3 +29,4 @@ def verify_receipt(receipt_dict: Dict[str, Any], public_key: Any) -> bool:
     
     canonical_bytes = canonicalize_json(receipt)
     return verify_signature(public_key, canonical_bytes, sig_info["value"])
+

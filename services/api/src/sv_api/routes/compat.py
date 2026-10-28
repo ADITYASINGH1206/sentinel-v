@@ -43,3 +43,4 @@ async def moderate_video_compat(
         receipt_id=receipt_id,
         report_url=f"http://localhost:5173/cases/{analysis_id}",
     )
+

@@ -29,3 +29,4 @@ contract ReceiptAnchor {
         emit Anchored(root, count, batchId);
     }
 }
+

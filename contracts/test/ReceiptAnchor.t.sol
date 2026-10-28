@@ -16,3 +16,4 @@ contract ReceiptAnchorTest {
         // Contract test logic for Foundry
     }
 }
+

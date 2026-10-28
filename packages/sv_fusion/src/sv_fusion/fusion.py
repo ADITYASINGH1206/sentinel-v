@@ -31,3 +31,4 @@ def fuse_signals_v1(
             labels.append("generative_signal_flagged")
 
     return final_band, labels, None
+

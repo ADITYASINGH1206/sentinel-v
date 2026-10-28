@@ -28,3 +28,4 @@ async def submit_review(analysis_id: str, review: ReviewCreate):
         "receipt_id": f"rcpt_{uuid.uuid4().hex[:16]}",
         "status": "recorded"
     }
+

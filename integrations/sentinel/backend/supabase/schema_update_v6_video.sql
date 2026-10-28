@@ -8,3 +8,4 @@ ADD COLUMN IF NOT EXISTS sv_receipt_id TEXT,
 ADD COLUMN IF NOT EXISTS video_review_required BOOLEAN DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_posts_video_status ON posts(video_moderation_status);
+

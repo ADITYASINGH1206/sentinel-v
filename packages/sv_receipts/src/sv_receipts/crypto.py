@@ -28,3 +28,4 @@ def verify_signature(public_key: ed25519.Ed25519PublicKey, message: bytes, signa
         return True
     except Exception:
         return False
+

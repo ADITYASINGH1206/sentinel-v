@@ -453,3 +453,4 @@ video result = max over tracks of calibrated stage-specific p_bal
 - **B6**: Ethics approval for E10 human study
 - **B7**: Testnet deployer RPC / private key
 - **B8**: SENTINEL repo maintainer sign-off
+

@@ -27,3 +27,4 @@ def test_compat_endpoint():
     data = res.json()
     assert "deepfake_confidence" in data
     assert "analysis_id" in data
+

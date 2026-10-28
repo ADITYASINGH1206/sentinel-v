@@ -34,3 +34,4 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
     </div>
   );
 };
+

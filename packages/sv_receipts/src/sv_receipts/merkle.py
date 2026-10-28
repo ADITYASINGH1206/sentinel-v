@@ -72,3 +72,4 @@ def verify_merkle_proof(receipt_sha256_hex: str, proof: List[Dict[str, str]], ex
         else:
             current = hash_internal(current, sibling)
     return current.hex() == expected_root_hex
+

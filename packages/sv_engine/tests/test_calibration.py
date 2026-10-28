@@ -26,3 +26,4 @@ def test_fit_platt_optimization():
 
     a, b = fit_platt(scores, labels)
     assert a > 0.5  # Positive scaling slope
+

@@ -32,3 +32,4 @@ def test_generative_signal_elevation():
     )
     assert band == DecisionBand.NEEDS_REVIEW
     assert "generative_signal_flagged" in labels
+

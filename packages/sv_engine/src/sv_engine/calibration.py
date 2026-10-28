@@ -47,3 +47,4 @@ def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> Tuple[float, float]:
 
     res = minimize(loss, x0=np.array([1.0, 0.0]), method="L-BFGS-B")
     return float(res.x[0]), float(res.x[1])
+

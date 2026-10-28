@@ -8,3 +8,4 @@ def test_default_settings():
     assert s.K_CLIPS == 8
     assert s.ENGINE_MODE in ["real", "mock"]
     assert s.RETENTION_MEDIA_DAYS == 30
+

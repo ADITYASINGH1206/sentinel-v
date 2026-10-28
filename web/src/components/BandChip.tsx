@@ -50,3 +50,4 @@ export const BandChip: React.FC<BandChipProps> = ({ band, size = 'md' }) => {
     </span>
   );
 };
+

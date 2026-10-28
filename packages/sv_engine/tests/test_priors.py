@@ -21,3 +21,4 @@ def test_estimate_ppv_paper_table():
     # PPV = 0.00471 / 0.01461 = 0.322 (32.2%)
     ppv = estimate_ppv(tpr=0.471, fpr=0.01, prior_pi=0.01)
     assert pytest.approx(ppv, abs=0.005) == 0.322
+

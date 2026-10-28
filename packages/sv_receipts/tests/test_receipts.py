@@ -37,3 +37,4 @@ def test_receipt_sign_and_verify():
     tampered = dict(signed)
     tampered["result"] = {"decision": "likely_manipulated", "p_bal": 0.99}
     assert verify_receipt(tampered, pub) is False
+

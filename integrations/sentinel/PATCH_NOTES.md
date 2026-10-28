@@ -36,3 +36,4 @@ if (mediaMimeType && mediaMimeType.startsWith('video/')) {
 ## 3. Database Migration
 
 Run `backend/supabase/schema_update_v6_video.sql` on the Supabase project to add the additive video moderation columns.
+

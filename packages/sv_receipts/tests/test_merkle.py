@@ -29,3 +29,4 @@ def test_merkle_tree_odd_leaves():
     for i in range(3):
         proof = tree.get_proof(i)
         assert verify_merkle_proof(hashes[i], proof, root) is True
+

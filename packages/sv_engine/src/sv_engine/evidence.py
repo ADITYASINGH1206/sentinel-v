@@ -42,3 +42,4 @@ def warp_heatmap_to_source_frame(
     except ImportError:
         # Fallback placeholder if cv2 not installed in current environment
         return np.zeros((out_height, out_width), dtype=np.float32)
+

@@ -44,3 +44,4 @@ class ModelBundleMissingError(SentinelVError):
 class VerificationFailedError(SentinelVError):
     def __init__(self, message: str = "Receipt cryptographic verification failed"):
         super().__init__("VERIFICATION_FAILED", message, 400)
+

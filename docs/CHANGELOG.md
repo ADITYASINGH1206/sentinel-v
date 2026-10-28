@@ -22,3 +22,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reviewer console web application scaffold (React, TypeScript, Vite, Tailwind).
 - Solidity contract `ReceiptAnchor.sol` and Foundry suite for EVM anchoring.
 - Docker compose orchestration and Makefile automation.
+

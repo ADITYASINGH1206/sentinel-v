@@ -27,3 +27,4 @@ make parity         # GPU box: SPEC §6.9
 make bundle CKPT=... VARIANT=st VAL_SCORES=...
 make eval-<id>      # SPEC §15 experiments; make eval-all
 ```
+
