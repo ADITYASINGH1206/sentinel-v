@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,7 +8,15 @@ try:
 except ImportError:
     HAS_PROMETHEUS = False
 
+from sv_api.database import init_db
 from sv_api.routes import health, analyses, receipts, compat, review
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
 
 app = FastAPI(
     title="SENTINEL-V Video Screening API",
@@ -16,6 +25,7 @@ app = FastAPI(
     openapi_url="/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS Middleware

@@ -48,6 +48,7 @@ class Settings(BaseSettings):  # type: ignore
     RECEIPT_SIGNING_KEY_PATH: str = "/run/secrets/receipt_ed25519.pem"
     PUBLIC_SCORE_DECIMALS: int = 2
     WEBHOOK_SECRET: str = "sv_default_webhook_secret_key_32b"
+    JWT_SECRET: str = "sv_default_jwt_secret_change_in_production"
 
     # Blockchain Anchoring
     ANCHOR_ENABLED: bool = False

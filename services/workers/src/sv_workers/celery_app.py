@@ -1,3 +1,4 @@
+import os
 from celery import Celery
 from sv_core.settings import settings
 
@@ -25,3 +26,8 @@ celery_app.conf.update(
     },
 )
 
+if os.environ.get("SV_TESTING") == "1" or settings.SV_TESTING:
+    celery_app.conf.update(
+        task_always_eager=True,
+        task_eager_propagates=True,
+    )
