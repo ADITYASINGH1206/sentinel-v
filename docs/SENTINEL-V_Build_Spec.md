@@ -312,28 +312,32 @@ import torch
 
 Variant = Literal["cnn", "s", "st", "full"]
 
+
 @dataclass(frozen=True)
 class ClipBatch:
-    frames_u8: torch.Tensor          # (N, T, 224, 224, 3) uint8, RGB, center-cropped
+    frames_u8: torch.Tensor  # (N, T, 224, 224, 3) uint8, RGB, center-cropped
     landmarks106: torch.Tensor | None  # (N, T, 106, 2) float32 in 224-crop coords (Full only)
-    conf: torch.Tensor               # (N, T) float32 detector confidence
+    conf: torch.Tensor  # (N, T) float32 detector confidence
+
 
 @dataclass(frozen=True)
 class ClipOutput:
-    logits: torch.Tensor             # (N,) float32
+    logits: torch.Tensor  # (N,) float32
     patch_logits: torch.Tensor | None  # (N, T, P) float32, P = grid*grid
-    grid: int                        # 16 for CLIP variants, 14 for CNN
+    grid: int  # 16 for CLIP variants, 14 for CNN
+
 
 class DetectorAdapter(Protocol):
     model_id: str
     variant: Variant
     T: int
     grid: int
+
     def load(self, bundle_dir: str, device: torch.device) -> None: ...
     def normalize(self, frames_u8: torch.Tensor) -> torch.Tensor: ...  # → (N,T,3,224,224) float
     @torch.inference_mode()
     def predict(self, batch: ClipBatch) -> ClipOutput: ...
-    def warmup(self) -> None: ...     # one dummy forward; called at worker start
+    def warmup(self) -> None: ...  # one dummy forward; called at worker start
 ```
 
 ---

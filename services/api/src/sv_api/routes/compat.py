@@ -1,6 +1,6 @@
 import uuid
-from typing import Optional
-from fastapi import APIRouter, Header, HTTPException
+
+from fastapi import APIRouter, Header
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -26,7 +26,7 @@ class CompatVideoResponse(BaseModel):
 @router.post("/moderate/video", response_model=CompatVideoResponse)
 async def moderate_video_compat(
     req: CompatVideoRequest,
-    x_internal_key: Optional[str] = Header(None),
+    x_internal_key: str | None = Header(None),
 ):
     analysis_id = f"an_{uuid.uuid4().hex[:16]}"
     receipt_id = f"rcpt_{uuid.uuid4().hex[:16]}"
@@ -43,4 +43,3 @@ async def moderate_video_compat(
         receipt_id=receipt_id,
         report_url=f"http://localhost:5173/cases/{analysis_id}",
     )
-

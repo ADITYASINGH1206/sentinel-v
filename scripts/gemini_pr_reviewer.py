@@ -9,8 +9,8 @@ import json
 import os
 import subprocess
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
 
 # Files to exclude from diff review to save token context
 EXCLUDE_EXTENSIONS = (
@@ -28,7 +28,7 @@ EXCLUDE_EXTENSIONS = (
     ".npy",
     ".pt",
     ".safetensors",
-    ".parquet"
+    ".parquet",
 )
 
 PROMPT_TEMPLATE = """You are an expert senior code reviewer and security auditor evaluating a Pull Request for SENTINEL-V.
@@ -87,11 +87,13 @@ Produce a comprehensive GitHub Markdown review with these exact sections:
 def get_pr_diff(pr_number: str = None) -> str:
     """Get filtered git diff for the pull request."""
     raw_diff = ""
-    
+
     # 1. First try gh pr diff if pr_number is known
     if pr_number:
         try:
-            res = subprocess.run(["gh", "pr", "diff", str(pr_number)], capture_output=True, text=True)
+            res = subprocess.run(
+                ["gh", "pr", "diff", str(pr_number)], capture_output=True, text=True
+            )
             if res.returncode == 0 and res.stdout.strip():
                 raw_diff = res.stdout
         except Exception:
@@ -104,7 +106,7 @@ def get_pr_diff(pr_number: str = None) -> str:
         try:
             res = subprocess.run(cmd, capture_output=True, text=True, check=True)
             raw_diff = res.stdout
-        except Exception as e:
+        except Exception:
             res = subprocess.run(["git", "diff", "HEAD~1...HEAD"], capture_output=True, text=True)
             raw_diff = res.stdout
 
@@ -114,7 +116,7 @@ def get_pr_diff(pr_number: str = None) -> str:
     # Filter out binary or lockfile diff blocks
     filtered_lines = []
     skip_current_file = False
-    
+
     for line in raw_diff.splitlines():
         if line.startswith("diff --git"):
             filename = line.split()[-1]
@@ -123,7 +125,7 @@ def get_pr_diff(pr_number: str = None) -> str:
             filtered_lines.append(line)
 
     filtered_diff = "\n".join(filtered_lines)
-    
+
     # Cap diff at 30,000 characters to stay well within Gemini context limits
     if len(filtered_diff) > 30000:
         filtered_diff = filtered_diff[:30000] + "\n\n... [Diff truncated due to size limit] ..."
@@ -140,22 +142,12 @@ def call_gemini(prompt: str, api_key: str) -> str:
     for model in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         payload = {
-            "contents": [
-                {
-                    "parts": [{"text": prompt}]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 2048
-            }
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048},
         }
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST"
+            url, data=data, headers={"Content-Type": "application/json"}, method="POST"
         )
 
         try:
@@ -196,9 +188,9 @@ def post_github_comment(pr_number: str, comment_body: str) -> None:
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Accept": "application/vnd.github+json",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                method="POST"
+                method="POST",
             )
             with urllib.request.urlopen(req) as r:
                 print(f"Posted review via GitHub REST API (Status {r.status})")
@@ -219,7 +211,7 @@ def main():
         # Try detecting from GitHub Actions event path
         event_path = os.environ.get("GITHUB_EVENT_PATH")
         if event_path and os.path.exists(event_path):
-            with open(event_path, "r") as f:
+            with open(event_path) as f:
                 event_data = json.load(f)
                 pr_info = event_data.get("pull_request", {})
                 pr_number = str(pr_info.get("number", ""))
@@ -232,22 +224,21 @@ def main():
 
     print(f"Reviewing PR #{pr_number}: '{pr_title}' by @{pr_author}...")
     diff = get_pr_diff(pr_number)
-    
+
     if diff == "No diff detected.":
         print("No changes found in diff to review.")
         return
 
     prompt = PROMPT_TEMPLATE.format(
-        pr_number=pr_number,
-        pr_title=pr_title,
-        pr_author=pr_author,
-        diff_content=diff
+        pr_number=pr_number, pr_title=pr_title, pr_author=pr_author, diff_content=diff
     )
 
     print("Sending diff to Gemini API for deep forensics and code review...")
     review = call_gemini(prompt, api_key)
 
-    footer = "\n\n---\n*Automated review by SENTINEL-V Gemini Bot &bull; Powered by Google Gemini API*"
+    footer = (
+        "\n\n---\n*Automated review by SENTINEL-V Gemini Bot &bull; Powered by Google Gemini API*"
+    )
     full_comment = review + footer
 
     if os.environ.get("DRY_RUN", "false").lower() in ("true", "1", "yes"):
@@ -260,4 +251,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

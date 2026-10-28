@@ -3,11 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 try:
     from prometheus_client import make_asgi_app
+
     HAS_PROMETHEUS = True
 except ImportError:
     HAS_PROMETHEUS = False
 
-from sv_api.routes import health, analyses, receipts, compat, review
+from sv_api.routes import analyses, compat, health, receipts, review
 
 app = FastAPI(
     title="SENTINEL-V Video Screening API",

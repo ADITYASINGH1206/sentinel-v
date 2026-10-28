@@ -1,5 +1,4 @@
 import hashlib
-from typing import Union
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -14,4 +13,3 @@ def sha256_file(filepath: str, chunk_size: int = 65536) -> str:
         while chunk := f.read(chunk_size):
             h.update(chunk)
     return h.hexdigest()
-

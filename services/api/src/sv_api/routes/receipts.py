@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Any
+
+from fastapi import APIRouter
 
 router = APIRouter()
 
@@ -13,25 +14,24 @@ async def get_receipt(receipt_id: str):
         "issuer": {
             "name": "SENTINEL-V",
             "key_id": "ed25519:default",
-            "public_key_url": "/.well-known/sv-keys.json"
+            "public_key_url": "/.well-known/sv-keys.json",
         },
-        "merkle": {
-            "root": "0" * 64,
-            "leaf_index": 0,
-            "proof": []
-        }
+        "merkle": {"root": "0" * 64, "leaf_index": 0, "proof": []},
     }
 
 
 @router.post("/verify")
-async def verify_receipt_endpoint(payload: Dict[str, Any]):
+async def verify_receipt_endpoint(payload: dict[str, Any]):
     return {
         "checks": [
             {"name": "signature", "status": "pass", "detail": "Valid Ed25519 signature"},
             {"name": "file_hash", "status": "skipped", "detail": "No file uploaded for comparison"},
             {"name": "merkle_root", "status": "pass", "detail": "Valid Merkle inclusion proof"},
-            {"name": "chain_anchor", "status": "skipped", "detail": "Anchoring disabled in test mode"},
-            {"name": "model_registry", "status": "pass", "detail": "Active model bundle verified"}
+            {
+                "name": "chain_anchor",
+                "status": "skipped",
+                "detail": "Anchoring disabled in test mode",
+            },
+            {"name": "model_registry", "status": "pass", "detail": "Active model bundle verified"},
         ]
     }
-

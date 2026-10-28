@@ -1,17 +1,18 @@
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any
+
 from sv_core.enums import DecisionBand, InconclusiveReason
 
 
 def fuse_signals_v1(
     face_decision: DecisionBand,
     face_p_bal: float,
-    inconclusive_reason: Optional[InconclusiveReason] = None,
-    c2pa_info: Optional[Dict[str, Any]] = None,
-    gen_image_info: Optional[Dict[str, Any]] = None,
-    gen_threshold: Optional[float] = None,
-) -> Tuple[DecisionBand, List[str], Optional[InconclusiveReason]]:
+    inconclusive_reason: InconclusiveReason | None = None,
+    c2pa_info: dict[str, Any] | None = None,
+    gen_image_info: dict[str, Any] | None = None,
+    gen_threshold: float | None = None,
+) -> tuple[DecisionBand, list[str], InconclusiveReason | None]:
     """Deterministic Fusion v1 conforming to SPEC §9."""
-    labels: List[str] = []
+    labels: list[str] = []
 
     # Rule 1: If face_manipulation is inconclusive, decision is inconclusive
     if face_decision == DecisionBand.INCONCLUSIVE:
@@ -31,4 +32,3 @@ def fuse_signals_v1(
             labels.append("generative_signal_flagged")
 
     return final_band, labels, None
-

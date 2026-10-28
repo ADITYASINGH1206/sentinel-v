@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from sv_engine.calibration import apply_platt, fit_platt, sigmoid, logit
+from sv_engine.calibration import apply_platt, fit_platt, logit, sigmoid
 
 
 def test_sigmoid_logit_roundtrip():
@@ -26,4 +26,3 @@ def test_fit_platt_optimization():
 
     a, b = fit_platt(scores, labels)
     assert a > 0.5  # Positive scaling slope
-

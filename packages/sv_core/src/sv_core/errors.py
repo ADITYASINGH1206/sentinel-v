@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class SentinelVError(Exception):
@@ -7,7 +7,7 @@ class SentinelVError(Exception):
         code: str,
         message: str,
         status_code: int = 400,
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         self.code = code
@@ -44,4 +44,3 @@ class ModelBundleMissingError(SentinelVError):
 class VerificationFailedError(SentinelVError):
     def __init__(self, message: str = "Receipt cryptographic verification failed"):
         super().__init__("VERIFICATION_FAILED", message, 400)
-

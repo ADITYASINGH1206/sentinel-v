@@ -1,5 +1,6 @@
 """SENTINEL-V Development Seed Script."""
 
+
 def seed():
     print("Seeding SENTINEL-V development data...")
     print("Seeded demo users:")
@@ -8,6 +9,6 @@ def seed():
     print("Seeded default policy: strict-low-fpr v3")
     print("Seeding complete.")
 
+
 if __name__ == "__main__":
     seed()
-

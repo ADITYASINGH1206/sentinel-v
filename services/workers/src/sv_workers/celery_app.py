@@ -24,4 +24,3 @@ celery_app.conf.update(
         "sv_workers.tasks.monitor.*": {"queue": "monitor"},
     },
 )
-

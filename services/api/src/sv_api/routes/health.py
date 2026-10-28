@@ -20,4 +20,3 @@ async def readyz():
         "status": "ready",
         "bundle": settings.MODEL_BUNDLE,
     }
-

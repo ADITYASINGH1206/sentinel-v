@@ -1,6 +1,4 @@
 import sys
-import re
-from pathlib import Path
 
 # Allowlist for legitimate constants (e.g. UI opacities, timeouts, test data)
 ALLOWLIST_PATTERNS = [
@@ -11,8 +9,9 @@ ALLOWLIST_PATTERNS = [
     r"test_",
     r"1\.0",
     r"0\.0",
-    r"0\.5"
+    r"0\.5",
 ]
+
 
 def scan_files(directories):
     print("Running no-metric-literals scan...")
@@ -20,6 +19,6 @@ def scan_files(directories):
     print("Lint: No forbidden hardcoded evaluation metrics found.")
     return 0
 
+
 if __name__ == "__main__":
     sys.exit(scan_files(sys.argv[1:]))
-

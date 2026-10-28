@@ -1,4 +1,5 @@
 import hashlib
+
 import numpy as np
 from sv_engine.adapters.base import ClipBatch, ClipOutput, DetectorAdapter, Variant
 
@@ -6,7 +7,9 @@ from sv_engine.adapters.base import ClipBatch, ClipOutput, DetectorAdapter, Vari
 class MockDetectorAdapter(DetectorAdapter):
     """Deterministic Mock Adapter for CI, CPU development, and frontend testing."""
 
-    def __init__(self, model_id: str = "mock-detector", variant: Variant = "st", T: int = 8, grid: int = 16):
+    def __init__(
+        self, model_id: str = "mock-detector", variant: Variant = "st", T: int = 8, grid: int = 16
+    ):
         self.model_id = model_id
         self.variant = variant
         self.T = T
@@ -23,7 +26,11 @@ class MockDetectorAdapter(DetectorAdapter):
         N = getattr(batch.frames_u8, "shape", [1])[0]
         logits = []
         for i in range(N):
-            raw_bytes = bytes(batch.frames_u8[i].tobytes() if hasattr(batch.frames_u8[i], "tobytes") else b"mock_frame_data")
+            raw_bytes = bytes(
+                batch.frames_u8[i].tobytes()
+                if hasattr(batch.frames_u8[i], "tobytes")
+                else b"mock_frame_data"
+            )
             digest = hashlib.sha256(raw_bytes).digest()
             # Map integer to logit centered around 0 in [-3.0, 3.0]
             val = int.from_bytes(digest[:4], "big") / (2**32 - 1)
@@ -31,7 +38,7 @@ class MockDetectorAdapter(DetectorAdapter):
             logits.append(logit)
 
         logits_arr = np.array(logits, dtype=np.float32)
-        
+
         # Synthetic Gaussian patch logits
         P = self.grid * self.grid
         patch_logits = np.zeros((N, self.T, P), dtype=np.float32)
@@ -39,16 +46,11 @@ class MockDetectorAdapter(DetectorAdapter):
         center = self.grid // 2
         for g_y in range(self.grid):
             for g_x in range(self.grid):
-                dist = (g_x - center)**2 + (g_y - center)**2
+                dist = (g_x - center) ** 2 + (g_y - center) ** 2
                 val = np.exp(-dist / 8.0) * 2.0
                 patch_logits[:, :, g_y * self.grid + g_x] = val
 
-        return ClipOutput(
-            logits=logits_arr,
-            patch_logits=patch_logits,
-            grid=self.grid
-        )
+        return ClipOutput(logits=logits_arr, patch_logits=patch_logits, grid=self.grid)
 
     def warmup(self) -> None:
         pass
-

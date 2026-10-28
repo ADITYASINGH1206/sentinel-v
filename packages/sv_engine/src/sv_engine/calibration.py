@@ -1,5 +1,5 @@
 import math
-from typing import Dict, Any, Tuple
+
 import numpy as np
 
 
@@ -24,9 +24,9 @@ def apply_platt(u: float, a: float, b: float) -> float:
     return sigmoid(a * u + b)
 
 
-def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> Tuple[float, float]:
+def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> tuple[float, float]:
     """Fit class-balanced Platt scaling parameters (a, b) using logistic regression.
-    
+
     Equivalent to smsdt.eval_cross.fit_platt.
     """
     from scipy.optimize import minimize
@@ -47,4 +47,3 @@ def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> Tuple[float, float]:
 
     res = minimize(loss, x0=np.array([1.0, 0.0]), method="L-BFGS-B")
     return float(res.x[0]), float(res.x[1])
-
