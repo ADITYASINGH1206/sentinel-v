@@ -46,6 +46,9 @@ storage/
 tmp/
 *.tmp
 *.log
+*.db
+*.sqlite
+*.sqlite3
 .DS_Store
 
 # Models & Weights (large binaries)

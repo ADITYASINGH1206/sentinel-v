@@ -1,0 +1,9 @@
+# SPEC §6.9 Parity Check Configuration
+variant: "st"
+bundle_dir: "models/bundle-2026-11-default"
+num_samples: 50
+tolerances:
+  median_delta_u: 0.05
+  p95_delta_u: 0.20
+  auc_delta: 0.005
+
