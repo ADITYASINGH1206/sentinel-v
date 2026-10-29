@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import subprocess
-import json
 
 ISSUES = [
     {
@@ -58,7 +57,7 @@ Implement the complete video ingestion and preprocessing pipeline conforming to 
 - [ ] Synthetic video unit tests passing (no-face, small-face, multi-track).
 - [ ] Landmark smoothing reproduces upstream `build_store.py` numerical outputs.
 - [ ] **Crop SSIM Parity >= 0.98** against upstream S-MSDT store on 20 validation videos (`make parity-crops`).
-"""
+""",
     },
     {
         "title": "[M3-SYS] FastAPI Gateway Core, Celery Task Queues & Redis SSE Pipeline",
@@ -111,7 +110,7 @@ Build the production API gateway, database models, and Celery distributed worker
 - [ ] Deduplication cache returns cached analysis on identical file.
 - [ ] Worker crash recovery: Celery `acks_late=True` prevents lost jobs.
 - [ ] Read API latency p95 < 100 ms under 50 RPS.
-"""
+""",
     },
     {
         "title": "[M2-ML] S-MSDT Model Adapters, Bundle Builder & Calibration Parity",
@@ -162,7 +161,7 @@ Implement the model adapters for S-MSDT variants, strict checkpoint loading, mod
 - [ ] Strict weight loading verifies clean state dicts.
 - [ ] Parity test passes on reference GPU: median $|\\Delta u| \\le 0.05$.
 - [ ] Checksum verification fails loudly if any bundle file is modified.
-"""
+""",
     },
     {
         "title": "[M5-SYS] Reviewer Console Core Workspace, Evidence Player & Keyboard Review",
@@ -212,7 +211,7 @@ Build the high-speed, accessible Reviewer Console SPA and keyboard-driven decisi
 - [ ] Playwright e2e test: Complete review flow using keyboard shortcuts only (`1/2/3`, `Enter`).
 - [ ] Axe accessibility audit: 0 serious or critical violations.
 - [ ] Initial JS bundle <= 250 KB gzipped.
-"""
+""",
     },
     {
         "title": "[M4-ML] Spatiotemporal Patch Evidence Maps & Video Overlay Rendering",
@@ -259,7 +258,7 @@ Implement spatiotemporal patch evidence extraction, coordinate back-projection, 
 - [ ] Geometric back-projection round-trip test: warping coordinates and inverting yields error < 0.5 px.
 - [ ] Generated WebP frames and MP4 overlays render with correct opacity and alignment.
 - [ ] Artifact SHA-256 hashes match `manifest.json`.
-"""
+""",
     },
     {
         "title": "[M6-ML] Two-Stage Cost Cascade Tuning, Decision Policies & Policy Simulator",
@@ -302,7 +301,7 @@ Implement the two-stage cost cascade, policy management, and prevalence-aware po
 ### Acceptance Criteria & Tests
 - [ ] Cascade correctly exits early on authentic clips and escalates ambiguous/fake clips.
 - [ ] Policy simulator reproduces SPEC §7.4 base-rate table exactly on Paper A test operating points.
-"""
+""",
     },
     {
         "title": "[M7-SYS] Detection Receipts, Ed25519 Signing, Merkle Batches & Solidity Contract",
@@ -351,7 +350,7 @@ Implement cryptographically verifiable Detection Receipts, RFC 8785 canonical se
 - [ ] Foundry test suite: 100% coverage on `ReceiptAnchor.sol` (revert unauthorized, prevent duplicate roots).
 - [ ] Tampering test: Modifying any receipt field or 1 byte of the media file causes verification failure.
 - [ ] Browser-based WebCrypto verification passes without backend API dependency.
-"""
+""",
     },
     {
         "title": "[M8-SYS] SENTINEL Integration Adapter, Webhook Dispatch & Supabase Schema",
@@ -398,7 +397,7 @@ Implement the additive, non-invasive integration adapter between SENTINEL-V and 
 - [ ] Test video submission via `/compat/moderate/video` returns expected schema.
 - [ ] Webhook HMAC signature verification passes.
 - [ ] CI diff check verifies no locked SENTINEL files are modified.
-"""
+""",
     },
     {
         "title": "[M9-ML] Population Stability Index (PSI) Drift Monitoring & Governed Recalibration",
@@ -443,7 +442,7 @@ Implement statistical drift monitoring (PSI), rolling ECE tracking, and the gove
 - [ ] Simulated 30-day domain shift triggers PSI alert at the expected inflection point.
 - [ ] Inverse probability weighting calculation tested against unweighted review data.
 - [ ] Retention job purges media while keeping signed detection receipts intact.
-"""
+""",
     },
     {
         "title": "[M10-ML] Paper B Evaluation Harness Execution (Experiments E1-E12) & Figures",
@@ -493,7 +492,7 @@ Build and run the complete experimental evaluation harness for Paper B, generati
 ### Acceptance Criteria & Tests
 - [ ] `make eval-all` executes and produces all CSV files in `eval/results/`.
 - [ ] Every number in figures traces directly to an experimental CSV.
-"""
+""",
     },
     {
         "title": "[M11-SYS] Security Hardening, SSRF Sandboxing, Load Testing & Release Package",
@@ -544,28 +543,35 @@ Execute the comprehensive security hardening checklist, SSRF sandboxing, media f
 - [ ] Media fuzzing tests pass with zero crashes or hangs.
 - [ ] Sustained load test meets 100 videos/hour throughput target.
 - [ ] PDF report generation produces valid, accessible case documents.
-"""
-    }
+""",
+    },
 ]
+
 
 def main():
     print("Creating GitHub Issues for SENTINEL-V Parallel Streams...")
     for issue in ISSUES:
         cmd = [
-            "gh", "issue", "create",
-            "--title", issue["title"],
-            "--body", f"**Assigned Lead:** {issue['assignee_tag']}\\n**Parallel Pairing:** {issue['parallel_partner']}\\n\\n" + issue["body"],
-            "--milestone", issue["milestone"]
+            "gh",
+            "issue",
+            "create",
+            "--title",
+            issue["title"],
+            "--body",
+            f"**Assigned Lead:** {issue['assignee_tag']}\\n**Parallel Pairing:** {issue['parallel_partner']}\\n\\n"
+            + issue["body"],
+            "--milestone",
+            issue["milestone"],
         ]
         for l in issue["labels"]:
             cmd.extend(["--label", l])
-        
+
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode == 0:
             print(f"Created: {issue['title']} -> {res.stdout.strip()}")
         else:
             print(f"Failed: {issue['title']} -> {res.stderr.strip()}")
 
+
 if __name__ == "__main__":
     main()
-

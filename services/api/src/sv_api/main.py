@@ -4,12 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 try:
     from prometheus_client import make_asgi_app
+
     HAS_PROMETHEUS = True
 except ImportError:
     HAS_PROMETHEUS = False
 
 from sv_api.database import init_db
-from sv_api.routes import health, analyses, receipts, compat, review
+from sv_api.routes import analyses, compat, health, receipts, review
 
 
 @asynccontextmanager
@@ -43,8 +44,8 @@ if HAS_PROMETHEUS:
     app.mount("/metrics", metrics_app)
 
 # Include Routers
-app.include_router(health.router, tags=["Health"])
-app.include_router(analyses.router, prefix="/v1/analyses", tags=["Analyses"])
-app.include_router(receipts.router, prefix="/v1/receipts", tags=["Receipts"])
-app.include_router(review.router, prefix="/v1", tags=["Reviews"])
-app.include_router(compat.router, prefix="/compat", tags=["SENTINEL Compatibility"])
+app.include_router(health.router)
+app.include_router(analyses.router)
+app.include_router(receipts.router)
+app.include_router(compat.router)
+app.include_router(review.router)

@@ -48,3 +48,4 @@ $$\text{Signature} = \text{HMAC-SHA256}(K_{\text{secret}}, t \mathbin{\Vert} "."
    SENTINEL_V_INTERNAL_KEY=default_key
    ```
 3. Submit a test post with a video URL. Verify that `video_moderation_status`, `video_deepfake_confidence`, and `sv_receipt_id` are written to Supabase without errors.
+

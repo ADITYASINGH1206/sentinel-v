@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from sv_core.enums import (
@@ -14,7 +15,7 @@ from sv_core.enums import (
 class ErrorDetail(BaseModel):
     code: str
     message: str
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
 class ErrorResponse(BaseModel):
@@ -47,13 +48,13 @@ class TrackResult(BaseModel):
     u: float
     p_bal: float
     decisive: bool
-    clips: List[ClipScore] = Field(default_factory=list)
+    clips: list[ClipScore] = Field(default_factory=list)
 
 
 class CascadeInfo(BaseModel):
     stage1_model: str
     stage1_p_bal: float
-    stage2_model: Optional[str] = None
+    stage2_model: str | None = None
     exited_early: bool = False
 
 
@@ -62,39 +63,39 @@ class ScoresSummary(BaseModel):
     p_bal: float
     p_prior: float
     prior_prevalence: float
-    ppv_estimate: Optional[float] = None
+    ppv_estimate: float | None = None
 
 
 class AnalysisCreate(BaseModel):
-    policy_id: Optional[str] = None
-    prior_prevalence: Optional[float] = 0.01
+    policy_id: str | None = None
+    prior_prevalence: float | None = 0.01
     mode: str = "auto"
     explain_gradcam: bool = False
     skip_cache: bool = False
-    external_ref: Optional[str] = None
-    webhook_url: Optional[str] = None
-    source_url: Optional[str] = None
+    external_ref: str | None = None
+    webhook_url: str | None = None
+    source_url: str | None = None
 
 
 class Analysis(BaseModel):
     id: str
     status: AnalysisStatus
-    media: Optional[MediaInfo] = None
-    policy: Dict[str, Any]
-    decision: Optional[DecisionBand] = None
-    inconclusive_reason: Optional[InconclusiveReason] = None
-    scores: Optional[ScoresSummary] = None
-    cascade: Optional[CascadeInfo] = None
-    tracks: List[TrackResult] = Field(default_factory=list)
-    signals: Dict[str, Any] = Field(default_factory=dict)
-    labels: List[str] = Field(default_factory=list)
-    models: List[Dict[str, str]] = Field(default_factory=list)
-    timings_ms: Dict[str, int] = Field(default_factory=dict)
-    receipt_id: Optional[str] = None
+    media: MediaInfo | None = None
+    policy: dict[str, Any]
+    decision: DecisionBand | None = None
+    inconclusive_reason: InconclusiveReason | None = None
+    scores: ScoresSummary | None = None
+    cascade: CascadeInfo | None = None
+    tracks: list[TrackResult] = Field(default_factory=list)
+    signals: dict[str, Any] = Field(default_factory=dict)
+    labels: list[str] = Field(default_factory=list)
+    models: list[dict[str, str]] = Field(default_factory=list)
+    timings_ms: dict[str, int] = Field(default_factory=dict)
+    receipt_id: str | None = None
     review_status: str = "not_required"
     cache_hit: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     pipeline_version: str = "unknown"
     mock: bool = False
 
@@ -102,30 +103,30 @@ class Analysis(BaseModel):
 class AnalysisSummary(BaseModel):
     id: str
     status: AnalysisStatus
-    decision: Optional[DecisionBand] = None
-    p_bal: Optional[float] = None
+    decision: DecisionBand | None = None
+    p_bal: float | None = None
     created_at: datetime
-    duration_s: Optional[float] = None
+    duration_s: float | None = None
     source: str = "api"
 
 
 class ReviewCreate(BaseModel):
     decision: ReviewDecision
-    reasons: List[str] = Field(default_factory=list)
-    notes: Optional[str] = None
+    reasons: list[str] = Field(default_factory=list)
+    notes: str | None = None
     confidence: int = Field(ge=1, le=5)
-    telemetry: Dict[str, Any] = Field(default_factory=dict)
-    study_id: Optional[str] = None
+    telemetry: dict[str, Any] = Field(default_factory=dict)
+    study_id: str | None = None
 
 
 class Review(BaseModel):
     id: str
     analysis_id: str
-    reviewer_id: Optional[str] = None
+    reviewer_id: str | None = None
     source: ReviewSource
     decision: ReviewDecision
-    reasons: List[str] = Field(default_factory=list)
-    notes: Optional[str] = None
+    reasons: list[str] = Field(default_factory=list)
+    notes: str | None = None
     confidence: int
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -141,14 +142,14 @@ class Policy(BaseModel):
     prior_prevalence: float = 0.01
     stage1_model: str = "smsdt-s-a"
     stage2_model: str = "smsdt-st-b"
-    cascade: Dict[str, Any] = Field(
+    cascade: dict[str, Any] = Field(
         default_factory=lambda: {
             "enabled": True,
             "exit_below_p_bal": 0.12,
             "miss_budget_on_val": 0.01,
         }
     )
-    bands: List[PolicyBand] = Field(
+    bands: list[PolicyBand] = Field(
         default_factory=lambda: [
             PolicyBand(name="likely_authentic", max_p_bal=0.30),
             PolicyBand(name="needs_review", max_p_bal=0.751),
@@ -157,11 +158,10 @@ class Policy(BaseModel):
     )
     threshold_source: str = "youden_val"
     audit_sample_rate: float = 0.02
-    actions: Dict[str, str] = Field(
+    actions: dict[str, str] = Field(
         default_factory=lambda: {
             "likely_manipulated": "hold_and_review",
             "needs_review": "review",
             "likely_authentic": "allow",
         }
     )
-

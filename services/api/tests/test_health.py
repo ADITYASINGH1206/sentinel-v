@@ -21,10 +21,9 @@ def test_readyz():
 def test_compat_endpoint():
     res = client.post(
         "/compat/moderate/video",
-        json={"post_id": "test_post_1", "video_url": "https://example.com/test.mp4"}
+        json={"post_id": "test_post_1", "video_url": "https://example.com/test.mp4"},
     )
     assert res.status_code == 200
     data = res.json()
     assert "deepfake_confidence" in data
     assert "analysis_id" in data
-

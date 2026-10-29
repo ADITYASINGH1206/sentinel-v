@@ -1,9 +1,9 @@
-import os
 from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
+
     HAS_PYDANTIC_SETTINGS = True
 except ImportError:
     HAS_PYDANTIC_SETTINGS = False

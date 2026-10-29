@@ -139,3 +139,4 @@ flowchart LR
    - Evidence heat-maps deleted automatically after 180 days (`SV_RETENTION_EVIDENCE_DAYS`).
    - Detection receipts kept permanently (receipts contain cryptographic digests, never raw media).
    - Right-to-erasure endpoint: `DELETE /v1/media/{id}` purges media and evidence while retaining receipts.
+

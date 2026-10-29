@@ -60,3 +60,4 @@ The verification page executes 5 verification checks client-side:
 3. **Merkle Inclusion:** Verification of proof path from leaf to batch root.
 4. **On-Chain Anchor:** Direct JSON-RPC call to `anchoredAt(root) > 0` via ethers.js.
 5. **Registry Check:** Check model weights SHA-256 and policy hash against `GET /v1/registry/hashes`.
+

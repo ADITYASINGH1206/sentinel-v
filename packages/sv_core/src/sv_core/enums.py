@@ -51,4 +51,3 @@ class UserRole(str, Enum):
 class EngineMode(str, Enum):
     REAL = "real"
     MOCK = "mock"
-

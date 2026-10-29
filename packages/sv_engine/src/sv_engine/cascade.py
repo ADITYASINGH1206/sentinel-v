@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Any
+
 import numpy as np
 
 from sv_engine.adapters.base import ClipBatch, ClipOutput, DetectorAdapter
@@ -24,20 +24,20 @@ class CascadeResult:
     video_p_bal: float
     decisive_track_idx: int
     exited_early: bool
-    track_results: List[TrackInferenceResult]
+    track_results: list[TrackInferenceResult]
 
 
 def evaluate_cascade(
-    track_batches: List[ClipBatch],
+    track_batches: list[ClipBatch],
     stage1_adapter: DetectorAdapter,
     stage2_adapter: DetectorAdapter,
-    stage1_calib: Tuple[float, float],
-    stage2_calib: Tuple[float, float],
+    stage1_calib: tuple[float, float],
+    stage2_calib: tuple[float, float],
     cascade_enabled: bool = True,
     exit_below_p_bal: float = 0.12,
 ) -> CascadeResult:
     """Evaluate two-stage cascade across multiple face tracks."""
-    track_results: List[TrackInferenceResult] = []
+    track_results: list[TrackInferenceResult] = []
 
     for idx, batch in enumerate(track_batches):
         s1_out = stage1_adapter.predict(batch)
@@ -86,4 +86,3 @@ def evaluate_cascade(
         exited_early=decisive_res.exited_early,
         track_results=track_results,
     )
-

@@ -64,3 +64,4 @@ Under the hood, this executes `tools/make_bundle.py` which performs the followin
 5. **Checksum Generation:**
    - Computes SHA-256 for every single file in the bundle and writes `checksums.sha256`.
    - The worker validates this file at startup and fails immediately if any byte differs.
+

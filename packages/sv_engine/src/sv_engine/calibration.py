@@ -1,5 +1,5 @@
 import math
-from typing import Dict, Any, Tuple
+
 import numpy as np
 
 
@@ -27,9 +27,9 @@ def apply_platt(u: float, a: float, b: float) -> float:
 calibrate_platt = apply_platt
 
 
-def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> Tuple[float, float]:
+def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> tuple[float, float]:
     """Fit class-balanced Platt scaling parameters (a, b) using logistic regression.
-    
+
     Equivalent to smsdt.eval_cross.fit_platt.
     """
     from scipy.optimize import minimize
