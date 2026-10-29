@@ -92,25 +92,29 @@ def test_auth_utilities():
     assert len(hashed_key) == 64
 
 
-@pytest.mark.anyio
-async def test_audit_logging():
-    await init_db()
-    async with async_session_maker() as session:
-        await record_audit_log(
-            db=session,
-            action="policy.update",
-            resource_type="policy",
-            resource_id="pol_strict_v3",
-            user_id="usr_admin",
-            details={"changed": "threshold"},
-        )
+def test_audit_logging():
+    import asyncio
 
-        stmt = select(AuditLog).where(AuditLog.action == "policy.update")
-        res = await session.execute(stmt)
-        entry = res.scalars().first()
-        assert entry is not None
-        assert entry.user_id == "usr_admin"
-        assert "threshold" in entry.details
+    async def _run():
+        await init_db()
+        async with async_session_maker() as session:
+            await record_audit_log(
+                db=session,
+                action="policy.update",
+                resource_type="policy",
+                resource_id="pol_strict_v3",
+                user_id="usr_admin",
+                details={"changed": "threshold"},
+            )
+
+            stmt = select(AuditLog).where(AuditLog.action == "policy.update")
+            res = await session.execute(stmt)
+            entry = res.scalars().first()
+            assert entry is not None
+            assert entry.user_id == "usr_admin"
+            assert "threshold" in entry.details
+
+    asyncio.run(_run())
 
 
 def test_analysis_creation_and_pipeline(client, test_video_bytes):
