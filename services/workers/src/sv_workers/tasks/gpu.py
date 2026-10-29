@@ -1,14 +1,19 @@
 import json
+import os
+import tempfile
 from typing import Any
 
 import numpy as np
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 from sv_api.database import async_session_maker
-from sv_api.models import TrackModel
+from sv_api.models import AnalysisModel, TrackModel
 from sv_api.sse import publish_progress
 from sv_engine.adapters.base import ClipBatch
 from sv_engine.adapters.mock import MockDetectorAdapter
+from sv_engine.evidence import generate_track_evidence
+from sv_engine.overlay_render import render_track_artifacts
 from sv_engine.preprocess.clips import ProcessedTrackClips
+from sv_engine.preprocess.decode import decode_video
 from sv_workers.celery_app import celery_app
 from sv_workers.tasks.utils import run_async
 
@@ -43,15 +48,32 @@ def load_tracks_npz(npz_path: str) -> list[ProcessedTrackClips]:
 async def _async_gpu(
     analysis_id: str, tracks_or_npz: str | list[ProcessedTrackClips]
 ) -> dict[str, Any]:
-    """Execute model cascade inference on tracks."""
+    """Execute model cascade inference on tracks and generate patch evidence."""
     if isinstance(tracks_or_npz, str):
         tracks = load_tracks_npz(tracks_or_npz)
     else:
         tracks = tracks_or_npz
 
+    # Check for original video file to obtain exact dimensions and frames for overlay
+    media_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.mp4")
+    source_frames: list[np.ndarray] | None = None
+    source_frame_indices: list[int] | None = None
+    vid_width = 1280
+    vid_height = 720
+
+    if os.path.exists(media_path):
+        try:
+            v_meta, decoded = decode_video(media_path)
+            vid_width = v_meta.width
+            vid_height = v_meta.height
+            source_frames = [df.bgr for df in decoded]
+            source_frame_indices = [df.frame_idx for df in decoded]
+        except Exception:
+            pass
+
     # Use deterministic mock adapter or real adapter
     adapter = MockDetectorAdapter(model_id="mock-st", variant="st")
-    track_records = []
+    track_records: list[dict[str, Any]] = []
 
     for idx, trk in enumerate(tracks):
         clip_out = adapter.predict(trk.batch)
@@ -60,6 +82,33 @@ async def _async_gpu(
 
         # Uncalibrated baseline score
         p_raw = float(1.0 / (1.0 + np.exp(-u_track)))
+
+        # Generate patch evidence maps and artifacts if patch_logits available
+        ev_root = None
+        if clip_out.patch_logits is not None:
+            try:
+                evidence_frames = generate_track_evidence(
+                    track_idx=idx,
+                    patch_logits_ktp=clip_out.patch_logits,
+                    affine_matrices_M=trk.M,
+                    frame_numbers=trk.frame_numbers,
+                    out_width=vid_width,
+                    out_height=vid_height,
+                    grid=clip_out.grid,
+                )
+                evidence_dir = os.path.join(
+                    tempfile.gettempdir(), "sv_evidence", analysis_id, f"track_{idx}"
+                )
+                _, ev_root = render_track_artifacts(
+                    track_evidence_frames=evidence_frames,
+                    output_dir=evidence_dir,
+                    track_idx=idx,
+                    source_frames=source_frames,
+                    p_score=p_raw,
+                    source_frame_indices=source_frame_indices,
+                )
+            except Exception:
+                ev_root = None
 
         clips_data = []
         for k in range(len(logits)):
@@ -80,14 +129,17 @@ async def _async_gpu(
                 "u": u_track,
                 "p_bal": p_raw,
                 "clips": clips_data,
+                "evidence_root": ev_root,
             }
         )
 
     # Find decisive track: argmax u
+    decisive_ev_root = None
     if track_records:
-        decisive_idx = int(np.argmax([t["u"] for t in track_records]))
+        decisive_idx = int(np.argmax([float(t["u"]) for t in track_records]))
         for i, t in enumerate(track_records):
             t["decisive"] = i == decisive_idx
+        decisive_ev_root = track_records[decisive_idx].get("evidence_root")
 
     # Persist Track rows to DB (ensuring idempotency on retry)
     async with async_session_maker() as session:
@@ -106,6 +158,16 @@ async def _async_gpu(
                 clips=json.dumps(t["clips"]),
             )
             session.add(trk_model)
+
+        # Store decisive evidence_root in analysis.signals if available
+        if decisive_ev_root:
+            stmt_up = (
+                update(AnalysisModel)
+                .where(AnalysisModel.id == analysis_id)
+                .values(signals=json.dumps({"evidence_root": decisive_ev_root}))
+            )
+            await session.execute(stmt_up)
+
         await session.commit()
 
         await publish_progress(
@@ -124,5 +186,5 @@ async def _async_gpu(
 
 @celery_app.task(name="sv_workers.tasks.gpu.run_gpu")
 def run_gpu(analysis_id: str, tracks_or_npz: str | list[ProcessedTrackClips]):
-    """Task: S-MSDT cascade model inference."""
+    """Task: S-MSDT cascade model inference and evidence generation."""
     return run_async(_async_gpu(analysis_id, tracks_or_npz))

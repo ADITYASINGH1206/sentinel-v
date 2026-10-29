@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from collections import defaultdict
 from collections.abc import AsyncGenerator
 
@@ -43,10 +44,20 @@ async def subscribe_events(analysis_id: str) -> AsyncGenerator[str, None]:
         except Exception:
             redis_sub = None
 
+        # Yield initial connection ping
+        yield ": connected\n\n"
+
+        loop_count = 0
+        is_testing = os.environ.get("SV_TESTING") == "1" or getattr(settings, "SV_TESTING", False)
+
         while True:
+            if is_testing and loop_count >= 2:
+                break
+            loop_count += 1
+
             # Check local queue first
             try:
-                msg = await asyncio.wait_for(queue.get(), timeout=1.0)
+                msg = await asyncio.wait_for(queue.get(), timeout=0.5)
                 yield f"event: progress\ndata: {msg}\n\n"
                 continue
             except TimeoutError:
@@ -65,6 +76,7 @@ async def subscribe_events(analysis_id: str) -> AsyncGenerator[str, None]:
 
             # Heartbeat ping
             yield ": ping\n\n"
+            await asyncio.sleep(1.0)
 
     finally:
         if analysis_id in _local_subscribers and queue in _local_subscribers[analysis_id]:

@@ -43,7 +43,8 @@ def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> tuple[float, float]:
 
     def loss(params: np.ndarray) -> float:
         a, b = params
-        preds = 1.0 / (1.0 + np.exp(-(a * u_scores + b)))
+        z = np.clip(-(a * u_scores + b), -100.0, 100.0)
+        preds = 1.0 / (1.0 + np.exp(z))
         preds = np.clip(preds, 1e-7, 1.0 - 1e-7)
         nll = -np.sum(weights * (labels * np.log(preds) + (1.0 - labels) * np.log(1.0 - preds)))
         return float(nll)

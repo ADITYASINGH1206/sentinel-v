@@ -131,6 +131,15 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
             "ppv_estimate": round(ppv, 4),
         }
 
+        # Read decisive evidence_root from signals if present
+        evidence_root = None
+        if analysis.signals:
+            try:
+                signals_data = json.loads(analysis.signals)
+                evidence_root = signals_data.get("evidence_root")
+            except Exception:
+                pass
+
         # Build Detection Receipt
         priv_key, _ = generate_keypair()
         receipt_dict = {
@@ -142,6 +151,9 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
             "policy_version": analysis.policy_version,
             "timestamp": now.isoformat() + "Z",
         }
+        if evidence_root:
+            receipt_dict["evidence_root"] = evidence_root
+
         signed_rcpt = sign_receipt(receipt_dict, priv_key)
 
         analysis.status = "completed"
