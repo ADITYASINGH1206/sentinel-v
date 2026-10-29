@@ -72,8 +72,11 @@ echo ""
 
 # 6. Download PDF Case Audit Report
 echo "[6/6] Generating and downloading PDF Case Report..."
-curl -s "${API_URL}/v1/analyses/${ANALYSIS_ID}/report.pdf" -o "/tmp/sentinel_v_report_${ANALYSIS_ID}.pdf" || true
-echo "  Report saved to: /tmp/sentinel_v_report_${ANALYSIS_ID}.pdf"
+if curl -s -f "${API_URL}/v1/analyses/${ANALYSIS_ID}/report.pdf" -o "/tmp/sentinel_v_report_${ANALYSIS_ID}.pdf"; then
+  echo "  Report saved to: /tmp/sentinel_v_report_${ANALYSIS_ID}.pdf"
+else
+  echo "  WARNING: Failed to download PDF report."
+fi
 echo ""
 
 echo "======================================================================"

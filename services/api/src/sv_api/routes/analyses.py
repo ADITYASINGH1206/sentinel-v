@@ -4,8 +4,9 @@ import tempfile
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -31,7 +32,7 @@ router = APIRouter()
 @router.post("", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 async def create_analysis(
     request: Request,
-    req: AnalysisCreate | None = None,
+    req: AnalysisCreate | None = Body(None),
     file: UploadFile | None = File(None),
     policy_id: str | None = Form(None),
     source_url: str | None = Form(None),
@@ -39,13 +40,16 @@ async def create_analysis(
 ):
     """Submit a video for calibrated deepfake screening (multipart upload or URL)."""
     # Support both application/json body and multipart/form-data
-    if req is None and request.headers.get("content-type", "").startswith("application/json"):
+    if req is None and "application/json" in request.headers.get("content-type", ""):
         try:
-            body = await request.json()
-            if isinstance(body, dict):
-                req = AnalysisCreate(**body)
-        except Exception:
-            pass
+            raw_body = await request.body()
+            if raw_body:
+                req = AnalysisCreate.model_validate_json(raw_body)
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=e.errors(),
+            )
     analysis_id = f"an_{uuid.uuid4().hex[:16]}"
     chosen_policy = policy_id or (req.policy_id if req else None) or "pol_strict_v3"
     target_url = source_url or (req.source_url if req else None)

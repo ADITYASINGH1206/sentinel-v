@@ -11,7 +11,7 @@ def generate_case_report_html(analysis: AnalysisModel) -> str:
     if analysis.scores:
         try:
             scores = json.loads(analysis.scores)
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             pass
 
     p_bal = scores.get("p_bal", 0.50)
@@ -155,7 +155,7 @@ def generate_case_report_pdf(analysis: AnalysisModel) -> bytes:
     if analysis.scores:
         try:
             scores = json.loads(analysis.scores)
-        except Exception:
+        except (json.JSONDecodeError, TypeError):
             pass
 
     p_bal = scores.get("p_bal", 0.50)
@@ -192,7 +192,7 @@ def generate_case_report_pdf(analysis: AnalysisModel) -> bytes:
 
     stream_ops = []
     for font, size, x, y, val in text_lines:
-        clean_val = val.replace("(", "\\(").replace(")", "\\)")
+        clean_val = str(val).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
         stream_ops.append(f"BT /{font} {size} Tf {x} {y} Td ({clean_val}) Tj ET")
 
     stream_content = "\n".join(stream_ops).encode("latin-1", errors="replace")
