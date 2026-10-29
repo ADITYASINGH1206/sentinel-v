@@ -36,9 +36,6 @@ for pkg in [
     if p_str not in sys.path:
         sys.path.insert(0, p_str)
 
-from base_rate_curves import generate_base_rates_plot
-from cascade_pareto import generate_cascade_pareto_plot
-from drift_timeline import generate_drift_timeline_plot
 from e1_parity import run_e1
 from e2_base_rates import run_e2
 from e3_cascade import run_e3
@@ -50,8 +47,6 @@ from e8_fusion_generative import run_e8
 from e9_faithfulness import run_e9
 from e11_drift import run_e11
 from e12_receipts import run_e12
-from robustness_radar import generate_robustness_radar_plot
-from roc import generate_roc_plot
 
 
 def test_manifests_structure_and_validity():
@@ -151,6 +146,13 @@ def test_run_experiment_cli_e10_deferral():
 
 def test_vector_figure_generation(tmp_path: Path):
     """Verify that all publication vector figures (PDF and SVG) render properly from CSV results."""
+    pytest.importorskip("matplotlib")
+    from base_rate_curves import generate_base_rates_plot
+    from cascade_pareto import generate_cascade_pareto_plot
+    from drift_timeline import generate_drift_timeline_plot
+    from robustness_radar import generate_robustness_radar_plot
+    from roc import generate_roc_plot
+
     # Run prerequisite experiments in tmp_path
     run_e2(output_dir=tmp_path)
     run_e3(output_dir=tmp_path)
