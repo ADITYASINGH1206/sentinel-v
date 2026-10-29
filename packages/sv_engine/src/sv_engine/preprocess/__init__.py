@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional, Tuple
 import numpy as np
 
@@ -52,13 +53,21 @@ def preprocess_video(
 ) -> PreprocessResult:
     """Execute end-to-end video preprocessing pipeline.
     
-    1. Decode video frames with PyAV (respecting rotation & sampling windows).
-    2. Detect faces with SCRFD or Mock detector.
-    3. Greedily track faces with IoU and smooth landmarks with Savitzky-Golay.
-    4. Form K clips of T contiguous frames, align & crop to 224x224.
-    5. Evaluate inconclusive status if no viable tracks found.
+    1. Validate and sanitize video_path against traversal and non-existent targets.
+    2. Decode video frames with PyAV (respecting rotation & sampling windows).
+    3. Detect faces with SCRFD or Mock detector.
+    4. Greedily track faces with IoU and smooth landmarks with Savitzky-Golay.
+    5. Form K clips of T contiguous frames, align & crop to 224x224.
+    6. Evaluate inconclusive status if no viable tracks found.
     """
-    metadata, decoded_frames = decode_video(video_path)
+    path = Path(video_path)
+    if ".." in path.parts:
+        raise ValueError(f"Path traversal detected in video_path: {video_path}")
+    resolved = path.resolve()
+    if not resolved.is_file():
+        raise FileNotFoundError(f"Video file not found or invalid: {video_path}")
+
+    metadata, decoded_frames = decode_video(str(resolved))
     if detector is None:
         detector = FaceDetector()
 
@@ -129,4 +138,3 @@ __all__ = [
     "PreprocessResult",
     "preprocess_video",
 ]
-

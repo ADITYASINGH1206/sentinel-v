@@ -323,3 +323,15 @@ def test_rotation_handling():
 
     rot_270 = apply_rotation(img, 270)
     assert rot_270.shape == (200, 100, 3)
+
+def test_preprocess_video_path_validation():
+    # Path traversal attempt should raise ValueError
+    with pytest.raises(ValueError, match="Path traversal detected"):
+        preprocess_video("../secret/video.mp4")
+
+    with pytest.raises(ValueError, match="Path traversal detected"):
+        preprocess_video("storage/../../etc/passwd")
+
+    # Non-existent file should raise FileNotFoundError
+    with pytest.raises(FileNotFoundError, match="Video file not found"):
+        preprocess_video("non_existent_video_file_99999.mp4")
