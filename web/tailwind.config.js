@@ -26,12 +26,13 @@ export default {
       },
       fontFamily: {
         sans: ['"Inter Variable"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Fraunces Variable"', 'Fraunces', '"Iowan Old Style"', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       borderRadius: {
-        sm: '6px',
-        md: '10px',
-        lg: '16px',
+        sm: '8px',
+        md: '12px',
+        lg: '20px',
       },
       boxShadow: {
         1: 'var(--shadow-1)',

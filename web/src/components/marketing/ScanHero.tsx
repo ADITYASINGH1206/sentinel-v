@@ -51,36 +51,36 @@ export const ScanHero: React.FC = () => {
     <div ref={ref} className="relative mx-auto w-full max-w-[520px]">
       <div className="absolute -inset-10 -z-10 rounded-[40px] bg-gradient-to-br from-accent/25 via-violet/10 to-transparent blur-3xl" aria-hidden />
       <div
-        className="vf-scan relative overflow-hidden rounded-lg border border-white/10 bg-[#070B12] shadow-2"
+        className="vf-scan relative overflow-hidden rounded-lg border border-white/10 bg-[#14110E] shadow-2"
         data-paused={paused ? 'true' : 'false'}
       >
         <svg viewBox="0 0 480 400" className="block h-auto w-full" role="img" aria-labelledby="scan-hero-title">
           <title id="scan-hero-title">Illustration of a face being scanned patch by patch; brighter patches mark where a detector found evidence.</title>
           <defs>
             <linearGradient id="hero-bg" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#0D1828" />
-              <stop offset="1" stopColor="#0A0F1A" />
+              <stop offset="0" stopColor="#221C16" />
+              <stop offset="1" stopColor="#17130F" />
             </linearGradient>
             <linearGradient id="hero-scan" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#2CC7C0" stopOpacity="0" />
-              <stop offset="0.85" stopColor="#2CC7C0" stopOpacity="0.25" />
-              <stop offset="1" stopColor="#2CC7C0" stopOpacity="0.95" />
+              <stop offset="0" stopColor="#F2994F" stopOpacity="0" />
+              <stop offset="0.85" stopColor="#F2994F" stopOpacity="0.25" />
+              <stop offset="1" stopColor="#F2994F" stopOpacity="0.95" />
             </linearGradient>
             <pattern id="hero-dots" width="16" height="16" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="#1E2A3B" />
+              <circle cx="1" cy="1" r="1" fill="#3A3128" />
             </pattern>
           </defs>
           <rect width="480" height="400" fill="url(#hero-bg)" />
           <rect width="480" height="400" fill="url(#hero-dots)" opacity="0.8" />
 
           {/* abstract subject */}
-          <ellipse cx="240" cy="420" rx="170" ry="90" fill="#1A2A3F" />
-          <rect x="214" y="290" width="52" height="60" rx="16" fill="#3A4B62" />
-          <ellipse cx="240" cy="190" rx="92" ry="118" fill="#54657E" />
-          <path d="M148 168c4-64 44-98 92-98s88 34 92 98c-22-30-56-42-92-42s-70 12-92 42z" fill="#2A3850" />
-          <path d="M196 170q12-9 24 0M260 170q12-9 24 0" stroke="#C9D2DE" strokeWidth="4" fill="none" strokeLinecap="round" />
-          <path d="M240 180l-8 34 12 3" stroke="#8C9AAF" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M212 250q28 16 56 0" stroke="#C9D2DE" strokeWidth="4" fill="none" strokeLinecap="round" />
+          <ellipse cx="240" cy="420" rx="170" ry="90" fill="#3B2F24" />
+          <rect x="214" y="290" width="52" height="60" rx="16" fill="#6B5A48" />
+          <ellipse cx="240" cy="190" rx="92" ry="118" fill="#8A7762" />
+          <path d="M148 168c4-64 44-98 92-98s88 34 92 98c-22-30-56-42-92-42s-70 12-92 42z" fill="#4A3C2E" />
+          <path d="M196 170q12-9 24 0M260 170q12-9 24 0" stroke="#EADFCB" strokeWidth="4" fill="none" strokeLinecap="round" />
+          <path d="M240 180l-8 34 12 3" stroke="#B5A48C" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M212 250q28 16 56 0" stroke="#EADFCB" strokeWidth="4" fill="none" strokeLinecap="round" />
 
           {/* patch evidence grid */}
           <g>
@@ -98,32 +98,32 @@ export const ScanHero: React.FC = () => {
               />
             ))}
           </g>
-          <rect x={BOX.x} y={BOX.y} width={BOX.w} height={BOX.h} fill="none" stroke="#1E2A3B" strokeDasharray="2 4" />
+          <rect x={BOX.x} y={BOX.y} width={BOX.w} height={BOX.h} fill="none" stroke="#3A3128" strokeDasharray="2 4" />
 
           {/* scan line */}
           <g className="scan-line">
             <rect x={BOX.x - 24} y={BOX.y - 40} width={BOX.w + 48} height="40" fill="url(#hero-scan)" />
-            <rect x={BOX.x - 24} y={BOX.y - 1} width={BOX.w + 48} height="2" fill="#2CC7C0" />
+            <rect x={BOX.x - 24} y={BOX.y - 1} width={BOX.w + 48} height="2" fill="#F2994F" />
           </g>
 
           {/* tracker corners */}
           <path
             d={`M${BOX.x} ${BOX.y + 22}V${BOX.y}h22M${BOX.x + BOX.w - 22} ${BOX.y}h22v22M${BOX.x + BOX.w} ${BOX.y + BOX.h - 22}v22h-22M${BOX.x + 22} ${BOX.y + BOX.h}h-22v-22`}
             fill="none"
-            stroke="#2CC7C0"
+            stroke="#F2994F"
             strokeWidth="2.5"
             strokeLinecap="round"
           />
           <rect x={BOX.x} y={BOX.y - 24} width="128" height="18" rx="3" fill="rgba(7,11,18,0.85)" />
-          <text x={BOX.x + 7} y={BOX.y - 11} fill="#E7EDF5" fontFamily="JetBrains Mono, monospace" fontSize="10.5" fontWeight="600">
+          <text x={BOX.x + 7} y={BOX.y - 11} fill="#F4EFE6" fontFamily="JetBrains Mono, monospace" fontSize="10.5" fontWeight="600">
             track #0 · 16×16 patches
           </text>
 
           {/* frame corners */}
-          <path d="M24 52V24h28M428 24h28v28M456 348v28h-28M52 376H24v-28" fill="none" stroke="#2A3850" strokeWidth="2" />
+          <path d="M24 52V24h28M428 24h28v28M456 348v28h-28M52 376H24v-28" fill="none" stroke="#4A3C2E" strokeWidth="2" />
         </svg>
 
-        <span className="absolute right-3 top-3 rounded bg-white/10 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[#C9D2DE] backdrop-blur">
+        <span className="absolute right-3 top-3 rounded bg-white/10 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[#EADFCB] backdrop-blur">
           ILLUSTRATION
         </span>
       </div>
