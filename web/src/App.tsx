@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Dashboard } from './routes/Dashboard';
 import { ReviewWorkspace } from './routes/ReviewWorkspace';
 import { CaseDetail } from './routes/CaseDetail';
@@ -80,11 +80,9 @@ function AppContent() {
   );
 }
 
-function CaseDetailWrapper({ onBack, onOpenReview }: { onBack: () => void; onOpenReview: (id: string) => void }) {
-  const hash = window.location.hash;
-  const match = hash.match(/\/cases\/([^?]+)/);
-  const caseId = match ? match[1] : 'an_mock_default';
-  return <CaseDetail caseId={caseId} onBack={onBack} onOpenReview={onOpenReview} />;
+function CaseDetailWrapper({ onBack, onOpenReview }: { onBack: () => void; onOpenReview: () => void }) {
+  const { id: caseId } = useParams<{ id: string }>();
+  return <CaseDetail caseId={caseId || 'an_mock_default'} onBack={onBack} onOpenReview={onOpenReview} />;
 }
 
 export function App() {

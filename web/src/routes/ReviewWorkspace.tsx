@@ -415,6 +415,13 @@ export const ReviewWorkspace: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Mandatory Screening Disclaimer in Triage Panel */}
+            <div className="pt-3 border-t border-border">
+              <p className="text-[11px] text-muted font-medium italic text-center">
+                {REQUIRED_DISCLAIMER}
+              </p>
+            </div>
           </div>
 
           {/* Keyboard Shortcuts Reference Pill */}

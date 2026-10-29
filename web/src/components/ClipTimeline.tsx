@@ -18,6 +18,7 @@ interface ClipTimelineProps {
   currentTime: number;
   duration?: number;
   tau?: number;
+  fps?: number;
   onSeek: (timeInSeconds: number) => void;
 }
 
@@ -27,6 +28,7 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
   currentTime,
   duration = 30.0,
   tau = 0.5,
+  fps = 30.0,
   onSeek,
 }) => {
   const activeTrack = tracks.find((t) => t.track_idx === selectedTrackIdx) || tracks[0];
@@ -38,15 +40,16 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
     clipIdx: clip.k,
   }));
 
-  // Sampling windows for long videos (> 30s): initial 8s + 4 spaced windows
+  // Sampling windows for long videos (> 30s): initial 8s + 4 spaced 32-frame windows (SPEC §2.3)
+  const windowLen = 32.0 / fps;
   const isLongVideo = duration > 30.0;
   const samplingWindows = isLongVideo
     ? [
         { start: 0, end: 8 },
-        { start: duration * 0.25, end: duration * 0.25 + 1.1 },
-        { start: duration * 0.5, end: duration * 0.5 + 1.1 },
-        { start: duration * 0.75, end: duration * 0.75 + 1.1 },
-        { start: Math.max(0, duration - 2.0), end: duration },
+        { start: duration * 0.25, end: duration * 0.25 + windowLen },
+        { start: duration * 0.5, end: duration * 0.5 + windowLen },
+        { start: duration * 0.75, end: duration * 0.75 + windowLen },
+        { start: Math.max(0, duration - windowLen), end: duration },
       ]
     : [{ start: 0, end: duration }];
 
