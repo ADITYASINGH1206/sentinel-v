@@ -4,8 +4,8 @@ import tempfile
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -30,6 +30,7 @@ router = APIRouter()
 
 @router.post("", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 async def create_analysis(
+    request: Request,
     req: AnalysisCreate | None = None,
     file: UploadFile | None = File(None),
     policy_id: str | None = Form(None),
@@ -37,9 +38,29 @@ async def create_analysis(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit a video for calibrated deepfake screening (multipart upload or URL)."""
+    # Support both application/json body and multipart/form-data
+    if req is None and request.headers.get("content-type", "").startswith("application/json"):
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                req = AnalysisCreate(**body)
+        except Exception:
+            pass
     analysis_id = f"an_{uuid.uuid4().hex[:16]}"
     chosen_policy = policy_id or (req.policy_id if req else None) or "pol_strict_v3"
     target_url = source_url or (req.source_url if req else None)
+
+    # Validate target URL against SSRF violations (SPEC §12)
+    if target_url:
+        from sv_api.security import SSRFSecurityError, validate_url_ssrf
+
+        try:
+            validate_url_ssrf(target_url)
+        except SSRFSecurityError as err:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"SSRF security violation: {err}",
+            ) from err
 
     # Save uploaded file or prepare placeholder
     temp_dir = tempfile.gettempdir()
@@ -206,3 +227,36 @@ async def get_analysis_evidence(analysis_id: str, db: AsyncSession = Depends(get
         "overlay_url": f"/v1/analyses/{analysis_id}/evidence/overlay.mp4",
         "webp_frames_url": f"/v1/analyses/{analysis_id}/evidence/frames/",
     }
+
+
+@router.get("/{analysis_id}/report.pdf")
+async def get_analysis_report_pdf(analysis_id: str, db: AsyncSession = Depends(get_db)):
+    """Generate and download compliant PDF case audit report (SPEC §14, §16)."""
+    from sv_api.reports import generate_case_report_pdf
+
+    stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
+    res = await db.execute(stmt)
+    model = res.scalars().first()
+    if not model:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    pdf_bytes = generate_case_report_pdf(model)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=report_{analysis_id}.pdf"},
+    )
+
+
+@router.get("/{analysis_id}/report.html", response_class=HTMLResponse)
+async def get_analysis_report_html(analysis_id: str, db: AsyncSession = Depends(get_db)):
+    """Generate accessible HTML case audit report for review console."""
+    from sv_api.reports import generate_case_report_html
+
+    stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
+    res = await db.execute(stmt)
+    model = res.scalars().first()
+    if not model:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    return HTMLResponse(content=generate_case_report_html(model))

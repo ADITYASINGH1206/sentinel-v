@@ -15,6 +15,12 @@ async def _async_ingest(
     analysis_id: str, media_path: str, source_url: str | None = None
 ) -> dict[str, Any]:
     """Execute ingest pipeline: hashing, deduplication check, metadata extraction."""
+    # Validate source URL against SSRF violations if provided
+    if source_url:
+        from sv_api.security import validate_url_ssrf
+
+        validate_url_ssrf(source_url)
+
     # 1. Compute SHA-256
     sha256 = hashlib.sha256()
     file_size = 0

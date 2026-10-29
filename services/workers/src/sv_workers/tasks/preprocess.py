@@ -37,8 +37,35 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> dict[str, Any]
     """Execute preprocessing: decode, detect, track, align, and form clips."""
     detector = MockFaceDetector() if settings.ENGINE_MODE == "mock" else None
 
-    # Run CPU/GPU preprocessing pipeline
-    prep_res = preprocess_video(video_path=media_path, detector=detector, max_tracks=4, K=8, T=8)
+    # Run CPU/GPU preprocessing pipeline with resilience against malformed/fuzzed inputs (SPEC §12, §21)
+    try:
+        prep_res = preprocess_video(
+            video_path=media_path, detector=detector, max_tracks=4, K=8, T=8
+        )
+    except Exception as exc:
+        async with async_session_maker() as session:
+            stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
+            res = await session.execute(stmt)
+            analysis = res.scalars().first()
+            if analysis:
+                analysis.decision = "inconclusive"
+                analysis.inconclusive_reason = "DECODE_FAILURE"
+                await session.commit()
+
+        await publish_progress(
+            analysis_id,
+            "preprocess",
+            60,
+            f"Media decoding failed safely: {exc}",
+        )
+        from sv_workers.tasks.finalize import run_finalize
+
+        if celery_app.conf.task_always_eager:
+            return run_finalize.delay(analysis_id, inconclusive=True)
+        try:
+            return run_finalize.delay(analysis_id, inconclusive=True)
+        except Exception:
+            return run_finalize(analysis_id, inconclusive=True)
 
     async with async_session_maker() as session:
         stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)

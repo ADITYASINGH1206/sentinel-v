@@ -16,5 +16,11 @@ RUN pip install --no-cache-dir \
     -e /app/packages/sv_receipts \
     -e /app/services/workers
 
-CMD ["celery", "-A", "sv_workers.celery_app", "worker", "--loglevel=INFO", "-Q", "ingest,preprocess,finalize,anchor,monitor"]
+# Non-root user execution for sandboxed worker processing (SPEC §12)
+RUN groupadd -g 1000 svuser && \
+    useradd -u 1000 -g svuser -m -s /bin/bash svuser && \
+    chown -R svuser:svuser /app
 
+USER svuser
+
+CMD ["celery", "-A", "sv_workers.celery_app", "worker", "--loglevel=INFO", "-Q", "ingest,preprocess,finalize,anchor,monitor"]
