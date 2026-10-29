@@ -92,7 +92,11 @@ def draw_score_banner(
 
 
 def _fourcc(tag: str) -> int:
-    """Safely obtain OpenCV VideoWriter FourCC code across versions."""
+    """Safely obtain OpenCV VideoWriter FourCC code across versions.
+
+    Uses getattr fallback for compatibility with OpenCV builds where VideoWriter_fourcc
+    is either a top-level function or a class method on cv2.VideoWriter.
+    """
     fn = getattr(cv2, "VideoWriter_fourcc", None)
     if fn is not None:
         return int(fn(*tag))
@@ -108,6 +112,7 @@ def render_overlay_video(
     decision_band: str = "needs_review",
     max_h: int = 720,
     max_w: int = 1280,
+    source_frame_indices: list[int] | None = None,
 ) -> str:
     """Render MP4 video with burned-in heat-maps, score banner, and disclaimer."""
     if not source_frames:
@@ -129,7 +134,9 @@ def render_overlay_video(
         writer = cv2.VideoWriter(output_path, fourcc, fps, (target_w, target_h))
 
     if not writer.isOpened():
-        raise RuntimeError(f"Could not open VideoWriter for {output_path}")
+        raise RuntimeError(
+            f"Could not open VideoWriter for {output_path} with codecs 'avc1' or 'mp4v'."
+        )
 
     try:
         for idx, src_frame in enumerate(source_frames):
@@ -137,9 +144,12 @@ def render_overlay_video(
             if frame_bgr.shape[2] == 4:
                 frame_bgr = cv2.cvtColor(frame_bgr, cv2.COLOR_BGRA2BGR)
 
+            # Match evidence by original frame number (handling trimmed/sampled videos)
+            orig_fidx = source_frame_indices[idx] if source_frame_indices is not None else idx
+
             # Check if this frame has an evidence heatmap
-            if idx in evidence_by_fidx:
-                ef = evidence_by_fidx[idx]
+            if orig_fidx in evidence_by_fidx:
+                ef = evidence_by_fidx[orig_fidx]
                 rgba = ef.heatmap_rgba
                 # Alpha blending: blend RGBA heatmap onto frame_bgr
                 alpha = rgba[:, :, 3:4].astype(np.float32) / 255.0
@@ -186,6 +196,7 @@ def render_track_artifacts(
     fps: float = 24.0,
     p_score: float = 0.5,
     decision_band: str = "needs_review",
+    source_frame_indices: list[int] | None = None,
 ) -> tuple[dict[str, str], str]:
     """Render all artifacts for a single track: WebP frames, overlay MP4, and manifest.json.
 
@@ -213,6 +224,7 @@ def render_track_artifacts(
             fps=fps,
             p_score=p_score,
             decision_band=decision_band,
+            source_frame_indices=source_frame_indices,
         )
         manifest[video_filename] = sha_video
 

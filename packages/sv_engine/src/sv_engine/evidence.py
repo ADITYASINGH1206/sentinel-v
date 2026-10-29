@@ -39,8 +39,8 @@ def warp_heatmap_to_source_frame(
     # 1. Bilinearly upsample grid -> 224x224
     up224 = cv2.resize(heatmap_grid.astype(np.float32), (224, 224), interpolation=cv2.INTER_LINEAR)
 
-    # 2. Pad 16px border to match 256x256 store crop coordinates
-    padded256 = np.pad(up224, ((16, 16), (16, 16)), mode="constant", constant_values=0.0)
+    # 2. Pad 16px border to match 256x256 store crop coordinates with reflection padding
+    padded256 = np.pad(up224, ((16, 16), (16, 16)), mode="reflect")
 
     # 3. Warp with inverse affine matrix back to original frame size (out_width, out_height)
     M_inv_2x3 = inv_affine_matrix[:2, :].astype(np.float32)
@@ -114,7 +114,7 @@ class EvidenceFrame:
     orig_frame_idx: int
     heatmap_raw: np.ndarray  # (H, W) float32 in [0, 1]
     heatmap_rgba: np.ndarray  # (H, W, 4) uint8 RGBA
-    score: float
+    score: float  # Mean uncalibrated patch probability in [0, 1]; not calibrated p_bal
 
 
 @dataclass(frozen=True)

@@ -137,3 +137,21 @@ def test_simulate_policy_endpoint(client):
     custom_sim = custom_resp.json()
     assert custom_sim["tpr"] == 0.80
     assert custom_sim["fpr"] == 0.02
+
+
+def test_reject_nonpositive_policy_version(client):
+    """POST /v1/policies with version <= 0 returns 422 Unprocessable Entity."""
+    payload = {
+        "policy_id": "invalid-version-policy",
+        "version": 0,
+        "name": "Invalid Version Policy",
+        "target_prevalence": 0.01,
+        "stage1_variant": "smsdt-s-a",
+        "stage2_variant": "smsdt-st-b",
+        "cascade_enabled": True,
+        "exit_below_p_bal": 0.12,
+        "thresholds": {"tau_authentic": 0.35, "tau_manipulated": 0.75},
+        "audit_sample_rate": 0.02,
+    }
+    resp = client.post("/v1/policies", json=payload)
+    assert resp.status_code == 422

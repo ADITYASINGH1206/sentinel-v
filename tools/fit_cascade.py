@@ -50,19 +50,20 @@ def generate_synthetic_validation_scores(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Generate representative synthetic validation logits for Stage 1 (S) and Stage 2 (ST)."""
     rng = np.random.default_rng(seed)
-    n_half = n_samples // 2
+    n_real = n_samples // 2
+    n_fake = n_samples - n_real
 
     # Authentic samples: centered around negative logits with high correlation
-    base_real = rng.normal(loc=-2.5, scale=0.8, size=n_half)
-    u_s1_real = base_real + rng.normal(0.0, 0.2, size=n_half)
-    u_s2_real = base_real * 1.1 + rng.normal(0.0, 0.15, size=n_half)
-    y_real = np.zeros(n_half, dtype=np.int32)
+    base_real = rng.normal(loc=-2.5, scale=0.8, size=n_real)
+    u_s1_real = base_real + rng.normal(0.0, 0.2, size=n_real)
+    u_s2_real = base_real * 1.1 + rng.normal(0.0, 0.15, size=n_real)
+    y_real = np.zeros(n_real, dtype=np.int32)
 
     # Manipulated samples: centered around positive logits with high correlation
-    base_fake = rng.normal(loc=2.5, scale=0.8, size=n_half)
-    u_s1_fake = base_fake + rng.normal(0.0, 0.2, size=n_half)
-    u_s2_fake = base_fake * 1.1 + rng.normal(0.0, 0.15, size=n_half)
-    y_fake = np.ones(n_half, dtype=np.int32)
+    base_fake = rng.normal(loc=2.5, scale=0.8, size=n_fake)
+    u_s1_fake = base_fake + rng.normal(0.0, 0.2, size=n_fake)
+    u_s2_fake = base_fake * 1.1 + rng.normal(0.0, 0.15, size=n_fake)
+    y_fake = np.ones(n_fake, dtype=np.int32)
 
     u_s1 = np.concatenate([u_s1_real, u_s1_fake])
     u_s2 = np.concatenate([u_s2_real, u_s2_fake])

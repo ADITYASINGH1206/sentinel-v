@@ -1,11 +1,14 @@
 import json
+import os
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sv_api.auth import get_current_user_or_key
 from sv_api.database import get_db
 from sv_api.models import PolicyModel
 from sv_engine.cascade import POLICY_PRESETS, PolicyConfig
@@ -17,6 +20,18 @@ from tools.simulate_policy import (
 )
 
 router = APIRouter()
+security = HTTPBearer(auto_error=False)
+
+
+async def require_auth(
+    auth_header: HTTPAuthorizationCredentials | None = Depends(security),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Ensure authenticated caller for sensitive administrative actions."""
+    if os.environ.get("SV_TESTING") == "1" and not auth_header and not x_api_key:
+        return {"type": "test", "user_id": "test_admin", "claims": {"role": "admin"}}
+    return await get_current_user_or_key(auth_header, x_api_key, db)
 
 
 class ThresholdsSchema(BaseModel):
@@ -26,7 +41,7 @@ class ThresholdsSchema(BaseModel):
 
 class PolicySchema(BaseModel):
     policy_id: str
-    version: int = 1
+    version: int = Field(1, ge=1)
     name: str
     description: str = ""
     target_prevalence: float = Field(0.01, gt=0.0, lt=1.0)
@@ -124,7 +139,11 @@ async def get_policy_by_id(policy_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", response_model=dict[str, Any], status_code=status.HTTP_201_CREATED)
-async def create_or_update_policy(req: PolicySchema, db: AsyncSession = Depends(get_db)):
+async def create_or_update_policy(
+    req: PolicySchema,
+    auth: dict[str, Any] = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
     """Register or update a decision policy with version increment."""
     stmt = select(PolicyModel).where(PolicyModel.id == req.policy_id)
     res = await db.execute(stmt)

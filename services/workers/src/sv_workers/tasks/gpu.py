@@ -13,6 +13,7 @@ from sv_engine.adapters.mock import MockDetectorAdapter
 from sv_engine.evidence import generate_track_evidence
 from sv_engine.overlay_render import render_track_artifacts
 from sv_engine.preprocess.clips import ProcessedTrackClips
+from sv_engine.preprocess.decode import decode_video
 from sv_workers.celery_app import celery_app
 from sv_workers.tasks.utils import run_async
 
@@ -53,9 +54,26 @@ async def _async_gpu(
     else:
         tracks = tracks_or_npz
 
+    # Check for original video file to obtain exact dimensions and frames for overlay
+    media_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.mp4")
+    source_frames: list[np.ndarray] | None = None
+    source_frame_indices: list[int] | None = None
+    vid_width = 1280
+    vid_height = 720
+
+    if os.path.exists(media_path):
+        try:
+            v_meta, decoded = decode_video(media_path)
+            vid_width = v_meta.width
+            vid_height = v_meta.height
+            source_frames = [df.bgr for df in decoded]
+            source_frame_indices = [df.frame_idx for df in decoded]
+        except Exception:
+            pass
+
     # Use deterministic mock adapter or real adapter
     adapter = MockDetectorAdapter(model_id="mock-st", variant="st")
-    track_records = []
+    track_records: list[dict[str, Any]] = []
 
     for idx, trk in enumerate(tracks):
         clip_out = adapter.predict(trk.batch)
@@ -74,8 +92,8 @@ async def _async_gpu(
                     patch_logits_ktp=clip_out.patch_logits,
                     affine_matrices_M=trk.M,
                     frame_numbers=trk.frame_numbers,
-                    out_width=1280,
-                    out_height=720,
+                    out_width=vid_width,
+                    out_height=vid_height,
                     grid=clip_out.grid,
                 )
                 evidence_dir = os.path.join(
@@ -85,8 +103,9 @@ async def _async_gpu(
                     track_evidence_frames=evidence_frames,
                     output_dir=evidence_dir,
                     track_idx=idx,
-                    source_frames=None,  # WebP frames and manifest
+                    source_frames=source_frames,
                     p_score=p_raw,
+                    source_frame_indices=source_frame_indices,
                 )
             except Exception:
                 ev_root = None
@@ -117,7 +136,7 @@ async def _async_gpu(
     # Find decisive track: argmax u
     decisive_ev_root = None
     if track_records:
-        decisive_idx = int(np.argmax([t["u"] for t in track_records]))
+        decisive_idx = int(np.argmax([float(t["u"]) for t in track_records]))
         for i, t in enumerate(track_records):
             t["decisive"] = i == decisive_idx
         decisive_ev_root = track_records[decisive_idx].get("evidence_root")

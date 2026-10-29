@@ -82,8 +82,15 @@ POLICY_PRESETS: dict[str, PolicyConfig] = {
 
 
 def get_policy(policy_id: str) -> PolicyConfig:
-    """Retrieve policy preset by id or return default strict-low-fpr."""
-    return POLICY_PRESETS.get(policy_id, POLICY_PRESETS["strict-low-fpr"])
+    """Retrieve policy preset by id or return default strict-low-fpr with warning."""
+    if policy_id not in POLICY_PRESETS:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            f"Unknown policy_id '{policy_id}' requested. Falling back to default 'strict-low-fpr'."
+        )
+        return POLICY_PRESETS["strict-low-fpr"]
+    return POLICY_PRESETS[policy_id]
 
 
 def assign_decision_band(

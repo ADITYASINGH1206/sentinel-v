@@ -248,3 +248,12 @@ def test_simulate_policy_prevalence_sweep():
     # At 20% prevalence, PPV is much higher than at 0.1%
     assert ppvs[-1] > 0.80
     assert ppvs[0] < 0.10
+
+
+def test_fit_cascade_odd_sample_counts():
+    """Verify generate_synthetic_validation_scores handles odd n_samples without index errors."""
+    u_s1, u_s2, labels = generate_synthetic_validation_scores(n_samples=1001, seed=42)
+    assert len(u_s1) == 1001
+    assert len(u_s2) == 1001
+    assert len(labels) == 1001
+    assert np.sum(labels == 1) + np.sum(labels == 0) == 1001
