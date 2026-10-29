@@ -209,7 +209,7 @@ async def run_policy_simulation(req: SimulateRequest):
             return sim
     except ValueError as err:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(err),
         )
 

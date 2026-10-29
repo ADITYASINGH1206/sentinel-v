@@ -34,6 +34,7 @@ jobs:
           pip install -e packages/sv_receipts
           pip install -e services/api
           pip install -e services/workers
+          pip install --no-deps -e services/monitor
 
       - name: Run Ruff Lint & Format Check
         run: |
@@ -42,7 +43,7 @@ jobs:
 
       - name: Run Mypy Type Checks
         run: |
-          mypy packages/ services/api/ --ignore-missing-imports
+          mypy packages/ services/api/ services/monitor/ --ignore-missing-imports
 
       - name: Run Pytest (Mock Mode)
         run: |

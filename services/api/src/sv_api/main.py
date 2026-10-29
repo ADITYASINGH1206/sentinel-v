@@ -11,7 +11,7 @@ except ImportError:
     HAS_PROMETHEUS = False
 
 from sv_api.database import init_db
-from sv_api.routes import analyses, compat, health, policies, receipts, review
+from sv_api.routes import analyses, compat, health, monitor, policies, receipts, review
 
 
 @asynccontextmanager
@@ -50,4 +50,5 @@ app.include_router(analyses.router, prefix="/v1/analyses", tags=["Analyses"])
 app.include_router(policies.router, prefix="/v1/policies", tags=["Policies"])
 app.include_router(receipts.router, prefix="/v1/receipts", tags=["Receipts"])
 app.include_router(review.router, prefix="/v1", tags=["Reviews"])
+app.include_router(monitor.router, prefix="/v1", tags=["Monitoring & Recalibration"])
 app.include_router(compat.router, prefix="/compat", tags=["SENTINEL Compatibility"])
