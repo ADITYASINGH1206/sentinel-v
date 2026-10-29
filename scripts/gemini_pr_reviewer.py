@@ -194,7 +194,8 @@ def get_pr_head_sha(pr_number: str) -> str:
         return sha
 
     # 2. GitHub CLI
-    repo = os.environ.get("GITHUB_REPOSITORY")
+    repo = get_github_repo()
+    token = get_github_token()
     cmd = ["gh", "pr", "view", str(pr_number), "--json", "headRefOid", "-q", ".headRefOid"]
     if repo:
         cmd.extend(["--repo", repo])
@@ -206,7 +207,6 @@ def get_pr_head_sha(pr_number: str) -> str:
         pass
 
     # 3. Direct REST API
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if token and repo:
         try:
             api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
@@ -238,6 +238,7 @@ def call_gemini(prompt: str, api_key: str) -> str:
             "generationConfig": {
                 "temperature": 0.2,
                 "maxOutputTokens": 8192,
+                "thinkingConfig": {"thinkingBudget": 512},
             },
         }
         data = json.dumps(payload).encode("utf-8")
@@ -273,16 +274,22 @@ def call_gemini(prompt: str, api_key: str) -> str:
 
 def extract_inline_suggestions(text: str):
     """Extract inline suggestions JSON block from Gemini output and return (cleaned_text, suggestions)."""
-    pattern = r"```inline-suggestions\s*([\s\S]*?)\s*```"
+    pattern = r"```inline-suggestions\s*([\s\S]*?)(\s*```|$)"
     match = re.search(pattern, text)
     if not match:
         return text.strip(), []
 
-    json_str = match.group(1).strip()
+    raw_json = match.group(1).strip()
     cleaned_text = re.sub(pattern, "", text).strip()
 
+    # If the JSON was cut off without a closing bracket, repair to last complete object
+    if not raw_json.endswith("]"):
+        last_brace = raw_json.rfind("}")
+        if last_brace != -1:
+            raw_json = raw_json[: last_brace + 1] + "\n]"
+
     try:
-        suggestions = json.loads(json_str)
+        suggestions = json.loads(raw_json)
         if isinstance(suggestions, list):
             return cleaned_text, suggestions
     except Exception as e:
@@ -291,10 +298,42 @@ def extract_inline_suggestions(text: str):
     return cleaned_text, []
 
 
+def get_github_token() -> str:
+    """Retrieve GitHub token from environment or gh CLI."""
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        return token
+    try:
+        res = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+
+def get_github_repo() -> str:
+    """Retrieve GitHub repository (owner/repo) from environment or gh CLI."""
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if repo:
+        return repo
+    try:
+        res = subprocess.run(
+            ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
+            capture_output=True,
+            text=True,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+    return "ADITYASINGH1206/sentinel-v"
+
+
 def post_or_update_github_comment(pr_number: str, comment_body: str) -> None:
     """Idempotently post or update the review comment to prevent duplicate spam."""
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    repo = os.environ.get("GITHUB_REPOSITORY")
+    token = get_github_token()
+    repo = get_github_repo()
 
     if not token or not repo:
         print("Warning: GITHUB_TOKEN or GITHUB_REPOSITORY missing. Attempting standard gh pr comment...")
@@ -393,8 +432,8 @@ def post_inline_review_comments(pr_number: str, head_sha: str, suggestions: list
     if not suggestions or not head_sha:
         return
 
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    repo = os.environ.get("GITHUB_REPOSITORY")
+    token = get_github_token()
+    repo = get_github_repo()
     if not token or not repo:
         print("Note: GITHUB_TOKEN or GITHUB_REPOSITORY not set. Skipping inline comments.")
         return
