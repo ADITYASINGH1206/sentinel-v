@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Milestone M11 (Security Hardening, SSRF Sandboxing, Fuzzing & Release Package):**
+  - SSRF protection module `services/api/src/sv_api/security.py` with DNS pre-resolution, private/loopback/link-local/cloud-metadata IP filtering, and 3-hop redirect bounding.
+  - Hardened streaming downloader `safe_download_file` with 500 MB size limit and connect/total timeouts.
+  - Worker container sandboxing (`infra/compose.yaml`, `infra/docker/worker-cpu.Dockerfile`) with non-root user `svuser:1000`, read-only rootfs, tmpfs scratch spaces, isolated internal network, and cgroup resource limits.
+  - Media parser fuzzing resilience (`decode.py`, `preprocess.py`) with dimension bounds ($1 \le w, h \le 8192$), zero-fps normalization, and clean `inconclusive: DECODE_FAILURE` worker fault tolerance.
+  - Server-rendered PDF and HTML case audit reports (`services/api/src/sv_api/reports.py`) via `GET /v1/analyses/{analysis_id}/report.pdf` and `report.html`.
+  - Locust load testing suite (`infra/locustfile.py`) benchmarking sustained screening throughput of $\ge 100$ videos/hour.
+  - End-to-end demo execution script (`scripts/demo.sh`).
+  - Security audit and threat modeling report in `docs/SECURITY_REVIEW.md`.
 - **Milestone M9 (PSI Drift Monitoring & Governed Recalibration):**
   - 10-quantile PSI continuous drift monitoring with Laplace smoothing and categorical drift across video codecs/containers (`sv_monitor.drift`).
   - Multi-feature input drift evaluator tracking raw score, face size, detector confidence, frame rate, resolution, and codec.
