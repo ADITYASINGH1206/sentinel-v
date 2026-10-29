@@ -19,7 +19,7 @@ from smsdt.models.smsdt_v2 import SMSDTv2
 try:
     from transformers import CLIPVisionConfig
 except ImportError:
-    CLIPVisionConfig = None
+    CLIPVisionConfig = None  # type: ignore[no-redef,assignment,misc]
 
 
 class ClipSAdapter:

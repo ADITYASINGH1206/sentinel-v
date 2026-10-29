@@ -1,11 +1,11 @@
 import argparse
 import os
 import sys
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import yaml
-from sv_engine.adapters.base import ClipBatch
+from sv_engine.adapters.base import ClipBatch, Variant
 from sv_engine.adapters.mock import MockDetectorAdapter
 from sv_engine.adapters.utils import ensure_smsdt_in_path
 
@@ -63,7 +63,7 @@ def evaluate_synthetic_parity(
     """Validate parity harness logic using deterministic mock adapter and simulated research baseline."""
     adapter = MockDetectorAdapter(
         model_id=f"mock-{variant}",
-        variant=variant if variant in ("st", "s", "cnn", "full") else "st",
+        variant=cast(Variant, variant if variant in ("st", "s", "cnn", "full") else "st"),
     )
     rng = np.random.default_rng(42)
 

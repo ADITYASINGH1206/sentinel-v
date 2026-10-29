@@ -106,7 +106,11 @@ def serialize_track_npz(processed: ProcessedTrackClips) -> bytes:
     np.savez_compressed(
         buf,
         frames_u8=processed.batch.frames_u8,
-        landmarks106=processed.batch.landmarks106,
+        landmarks106=(
+            processed.batch.landmarks106
+            if processed.batch.landmarks106 is not None
+            else np.empty(0, dtype=np.float32)
+        ),
         conf=processed.batch.conf,
         frame_numbers=processed.frame_numbers,
         M=processed.M,

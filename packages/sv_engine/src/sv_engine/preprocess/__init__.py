@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from sv_core.enums import InconclusiveReason
@@ -44,7 +45,7 @@ class PreprocessResult:
 
 def preprocess_video(
     video_path: str,
-    detector: object | None = None,
+    detector: Any = None,
     max_tracks: int = 4,
     K: int = 8,
     T: int = 8,

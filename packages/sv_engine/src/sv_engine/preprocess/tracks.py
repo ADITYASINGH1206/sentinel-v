@@ -95,7 +95,8 @@ def track_faces_multi(
                 max_val = np.max(iou_matrix) if iou_matrix.size > 0 else 0.0
                 if max_val < iou_thresh:
                     break
-                t_idx, d_idx = np.unravel_index(np.argmax(iou_matrix), iou_matrix.shape)
+                idx_pair = np.unravel_index(np.argmax(iou_matrix), iou_matrix.shape)
+                t_idx, d_idx = int(idx_pair[0]), int(idx_pair[1])
 
                 # Assign detection to track
                 det = detections[d_idx]
