@@ -89,6 +89,8 @@ class AnalysisModel(Base):
     review_status = Column(String(32), default="not_required", nullable=False)
     cache_hit = Column(Boolean, default=False, nullable=False)
     error_info = Column(Text, nullable=True)  # JSON-serialized error detail
+    external_ref = Column(String(128), nullable=True)
+    webhook_url = Column(String(512), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
 

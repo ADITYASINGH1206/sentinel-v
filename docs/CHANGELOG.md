@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Milestone M8 (SENTINEL Platform Integration, Webhooks & Supabase Schema):**
+  - Additive compatibility endpoint `POST /compat/moderate/video` with `X-Internal-Key` authentication and synchronous wait up to `SV_COMPAT_SYNC_TIMEOUT_S=50` (or `status: pending` fallback).
+  - HMAC-SHA256 webhook signing (`X-SV-Signature: t=<timestamp>,v1=<signature>`) and timing-safe signature verification with 300-second timestamp tolerance.
+  - Asynchronous and synchronous webhook dispatchers (`dispatch_webhook`, `dispatch_webhook_sync`) integrated into Celery task finalization.
+  - Additive SENTINEL deliverables in `integrations/sentinel/`:
+    - `videoModerationService.js`: Non-blocking Axios client for video moderation.
+    - `svWebhookRoutes.js`: Express webhook receiver with HMAC-SHA256 validation and Supabase posts table updating.
+    - `schema_update_v6_video.sql`: Additive video moderation columns and indexes for Supabase posts table.
+    - `VideoAuthenticityBadge.jsx`: React Tailwind badge with confidence percentage, decision band styling, and mandatory screening aid disclaimer.
+    - `PATCH_NOTES.md`: One-line non-invasive wiring guide for `postController.js`.
+  - Strict lock compliance verification tool `tools/check_locked_files.py` integrated into CI pipeline.
 - **Milestone M7 (Detection Receipts & EVM Anchoring):**
   - RFC 8785 JSON Canonicalization Scheme (JCS) and Ed25519 digital signature signing/verification in `packages/sv_receipts`.
   - RFC 6962 compliant Merkle batching tree with domain separation prefixes (`0x00` leaf, `0x01` internal) and inclusion audit path generation.
