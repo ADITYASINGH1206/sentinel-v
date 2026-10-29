@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from sv_api.main import app
+from sv_core.settings import settings
 
 client = TestClient(app)
 
@@ -22,8 +23,10 @@ def test_compat_endpoint():
     res = client.post(
         "/compat/moderate/video",
         json={"post_id": "test_post_1", "video_url": "https://example.com/test.mp4"},
+        headers={"X-Internal-Key": settings.COMPAT_INTERNAL_KEY},
     )
     assert res.status_code == 200
     data = res.json()
     assert "deepfake_confidence" in data
     assert "analysis_id" in data
+    assert data["status"] in ("allowed", "review", "held", "pending")

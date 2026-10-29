@@ -68,6 +68,7 @@ class Settings(BaseSettings):  # type: ignore
     # Sentinel Integration
     COMPAT_SENTINEL_ENABLED: bool = True
     COMPAT_SYNC_TIMEOUT_S: int = 50
+    COMPAT_INTERNAL_KEY: str = "default_key"
     SENTINEL_WEBHOOK_URL: str = ""
 
     # Auxiliary Models

@@ -1,7 +1,8 @@
 const axios = require('axios');
 
 /**
- * Non-blocking, fire-and-forget video moderation client matching SENTINEL style.
+ * Non-blocking, fire-and-forget video moderation client matching SENTINEL style (SPEC §11).
+ * Posts video_url and post_id to SENTINEL-V compatibility endpoint.
  */
 async function moderateVideo(postId, videoUrl) {
     const sentinelVUrl = process.env.SENTINEL_V_URL || 'http://localhost:8080';
@@ -12,8 +13,11 @@ async function moderateVideo(postId, videoUrl) {
             `${sentinelVUrl}/compat/moderate/video`,
             { post_id: postId, video_url: videoUrl },
             {
-                headers: { 'X-Internal-Key': internalKey },
-                timeout: 50000 // 50s sync timeout
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Internal-Key': internalKey,
+                },
+                timeout: 50000, // 50s sync timeout conforming to SV_COMPAT_SYNC_TIMEOUT_S
             }
         );
         return response.data;
@@ -25,4 +29,3 @@ async function moderateVideo(postId, videoUrl) {
 }
 
 module.exports = { moderateVideo };
-

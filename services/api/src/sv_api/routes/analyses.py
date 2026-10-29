@@ -61,6 +61,8 @@ async def create_analysis(
         policy_id=chosen_policy,
         policy_version=3,
         model_bundle_id=settings.MODEL_BUNDLE,
+        external_ref=req.external_ref if req else None,
+        webhook_url=req.webhook_url if req else None,
         created_at=datetime.now(UTC).replace(tzinfo=None),
     )
     db.add(analysis_model)
