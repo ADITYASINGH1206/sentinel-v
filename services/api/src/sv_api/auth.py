@@ -1,18 +1,18 @@
-from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import secrets
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from sv_api.database import get_db
-from sv_api.models import ApiKey, AuditLog, User
+from sv_api.models import ApiKey, AuditLog
 from sv_core.settings import settings
 
 ph = PasswordHasher()
@@ -35,18 +35,18 @@ def verify_password(hashed: str, password: str) -> bool:
         return False
 
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """Create JWT access token (default 15 minutes)."""
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=15))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
-def create_refresh_token(data: Dict[str, Any]) -> str:
+def create_refresh_token(data: dict[str, Any]) -> str:
     """Create JWT refresh token (7 days)."""
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(days=7)
+    expire = datetime.now(UTC) + timedelta(days=7)
     to_encode.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -62,12 +62,12 @@ def hash_api_key(api_key: str) -> str:
 
 
 async def get_current_user_or_key(
-    auth_header: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
-    db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
+    auth_header: HTTPAuthorizationCredentials | None = Depends(security),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
     """Authenticate request using either Bearer JWT or X-API-Key header."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     # 1. Check API Key
     if x_api_key:
         hashed = hash_api_key(x_api_key)
@@ -76,8 +76,7 @@ async def get_current_user_or_key(
         key_record = res.scalars().first()
         if not key_record:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid or revoked API key"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or revoked API key"
             )
         # Update last_used_at
         key_record.last_used_at = now
@@ -92,29 +91,27 @@ async def get_current_user_or_key(
             user_id = payload.get("sub")
             if user_id is None:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid token payload"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
                 )
             return {"type": "jwt", "user_id": user_id, "claims": payload}
         except jwt.PyJWTError:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Could not validate credentials"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials"
             )
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Missing authentication credentials (Bearer token or X-API-Key)"
+        detail="Missing authentication credentials (Bearer token or X-API-Key)",
     )
 
 
 async def record_audit_log(
     db: AsyncSession,
-    user_id: Optional[str],
+    user_id: str | None,
     action: str,
     resource_type: str,
     resource_id: str,
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None,
 ) -> None:
     """Record an immutable audit log entry."""
     audit = AuditLog(
@@ -124,7 +121,7 @@ async def record_audit_log(
         resource_type=resource_type,
         resource_id=resource_id,
         details=json.dumps(details or {}),
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None)
+        created_at=datetime.now(UTC).replace(tzinfo=None),
     )
     db.add(audit)
     await db.commit()

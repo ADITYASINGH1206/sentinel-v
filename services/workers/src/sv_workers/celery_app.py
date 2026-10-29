@@ -1,4 +1,5 @@
 import os
+
 from celery import Celery
 from sv_core.settings import settings
 

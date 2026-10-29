@@ -1,21 +1,18 @@
 import asyncio
-from collections import defaultdict
 import json
-from typing import AsyncGenerator, Dict, Optional
+from collections import defaultdict
+from collections.abc import AsyncGenerator
+
 import redis.asyncio as aioredis
 from sv_core.settings import settings
 
 # In-memory subscriber registry for environments without live Redis
-_local_subscribers: Dict[str, list] = defaultdict(list)
+_local_subscribers: dict[str, list] = defaultdict(list)
 
 
 async def publish_progress(analysis_id: str, stage: str, pct: int, message: str) -> None:
     """Publish a progress event for an active analysis."""
-    payload = json.dumps({
-        "stage": stage,
-        "pct": pct,
-        "message": message
-    })
+    payload = json.dumps({"stage": stage, "pct": pct, "message": message})
 
     # 1. Try publishing to Redis
     try:
@@ -52,13 +49,15 @@ async def subscribe_events(analysis_id: str) -> AsyncGenerator[str, None]:
                 msg = await asyncio.wait_for(queue.get(), timeout=1.0)
                 yield f"event: progress\ndata: {msg}\n\n"
                 continue
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
             # Check Redis pub/sub if active
             if redis_sub is not None:
                 try:
-                    redis_msg = await redis_sub.get_message(ignore_subscribe_messages=True, timeout=0.5)
+                    redis_msg = await redis_sub.get_message(
+                        ignore_subscribe_messages=True, timeout=0.5
+                    )
                     if redis_msg and "data" in redis_msg:
                         yield f"event: progress\ndata: {redis_msg['data']}\n\n"
                 except Exception:
@@ -76,4 +75,3 @@ async def subscribe_events(analysis_id: str) -> AsyncGenerator[str, None]:
                 await redis_sub.close()
             except Exception:
                 pass
-

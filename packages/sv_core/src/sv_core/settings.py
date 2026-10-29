@@ -1,4 +1,5 @@
 from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 try:
@@ -49,11 +50,11 @@ class Settings(BaseSettings):  # type: ignore
     PUBLIC_SCORE_DECIMALS: int = 2
     WEBHOOK_SECRET: str = Field(
         default="sv_default_webhook_secret_key_32b",
-        description="Secret for validating webhook signatures. Must be overridden in production via SV_WEBHOOK_SECRET."
+        description="Secret for validating webhook signatures. Must be overridden in production via SV_WEBHOOK_SECRET.",
     )
     JWT_SECRET: str = Field(
         default="",
-        description="Secret key for JWT bearer signing. Must be provided via SV_JWT_SECRET."
+        description="Secret key for JWT bearer signing. Must be provided via SV_JWT_SECRET.",
     )
 
     # Blockchain Anchoring
@@ -78,10 +79,18 @@ class Settings(BaseSettings):  # type: ignore
     @model_validator(mode="after")
     def validate_secrets(self) -> "Settings":
         if self.ENV == "prod":
-            if not self.JWT_SECRET or "default" in self.JWT_SECRET.lower() or "change" in self.JWT_SECRET.lower():
-                raise ValueError("SV_JWT_SECRET must be explicitly set to a secure key in production environments.")
+            if (
+                not self.JWT_SECRET
+                or "default" in self.JWT_SECRET.lower()
+                or "change" in self.JWT_SECRET.lower()
+            ):
+                raise ValueError(
+                    "SV_JWT_SECRET must be explicitly set to a secure key in production environments."
+                )
             if not self.WEBHOOK_SECRET or "default" in self.WEBHOOK_SECRET.lower():
-                raise ValueError("SV_WEBHOOK_SECRET must be explicitly set to a secure key in production environments.")
+                raise ValueError(
+                    "SV_WEBHOOK_SECRET must be explicitly set to a secure key in production environments."
+                )
         if not self.JWT_SECRET:
             self.JWT_SECRET = "sv_dev_jwt_secret_insecure_local_only_change_in_production"
         return self

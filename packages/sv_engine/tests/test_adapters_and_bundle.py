@@ -1,8 +1,9 @@
-import json
+# ruff: noqa: I001
 import os
-from pathlib import Path
 import sys
 import tempfile
+from pathlib import Path
+
 import numpy as np
 import pytest
 import torch
@@ -11,9 +12,14 @@ root_dir = str(Path(__file__).resolve().parents[3])
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
+from sv_engine.adapters.utils import ensure_smsdt_in_path
+
+ensure_smsdt_in_path()
+
+# fmt: off
+from smsdt.models.clip_encoder import CLIP_MEAN, CLIP_STD  # noqa: E402
+# fmt: on
 from sv_engine.adapters import (
-    ClipBatch,
-    ClipOutput,
     ClipSAdapter,
     ClipSTAdapter,
     CnnP1Adapter,
@@ -22,11 +28,8 @@ from sv_engine.adapters import (
     load_state_dict_strict,
     verify_bundle_checksums,
 )
-from smsdt.models.clip_encoder import CLIP_MEAN, CLIP_STD
+
 from tools.fit_calibration import (
-    compute_ece,
-    compute_tpr_at_fpr,
-    compute_youden_tau,
     fit_calibration_and_metrics,
 )
 from tools.make_bundle import build_bundle
@@ -83,6 +86,7 @@ def test_normalization_invariants():
 
 def test_strict_weight_loading_guard():
     """Verify strict weight loading asserts missing_keys == [] and unexpected_keys == []."""
+
     class SimpleModule(torch.nn.Module):
         def __init__(self):
             super().__init__()
@@ -92,7 +96,11 @@ def test_strict_weight_loading_guard():
     module = SimpleModule()
 
     # Clean state dict should pass
-    clean_dict = {"linear.weight": torch.randn(2, 10), "linear.bias": torch.randn(2), "bias": torch.randn(2)}
+    clean_dict = {
+        "linear.weight": torch.randn(2, 10),
+        "linear.bias": torch.randn(2),
+        "bias": torch.randn(2),
+    }
     load_state_dict_strict(module, clean_dict)
 
     # Missing keys should fail loudly
@@ -119,7 +127,7 @@ def test_make_bundle_and_checksum_verification():
             "proj.0.weight": torch.randn(1024),
             "proj.0.bias": torch.randn(1024),
             "proj.1.weight": torch.randn(384, 1024),
-            "proj.1.bias": torch.randn(384)
+            "proj.1.bias": torch.randn(384),
         }
         torch.save(dummy_weights, ckpt_path)
 
@@ -133,12 +141,7 @@ def test_make_bundle_and_checksum_verification():
                 f.write(f"{score},{0 if i < 50 else 1}\n")
 
         bundle_dir = os.path.join(tmpdir, "bundle_out")
-        build_bundle(
-            ckpt_path=ckpt_path,
-            variant="st",
-            val_scores_csv=csv_path,
-            out_dir=bundle_dir
-        )
+        build_bundle(ckpt_path=ckpt_path, variant="st", val_scores_csv=csv_path, out_dir=bundle_dir)
 
         assert os.path.exists(os.path.join(bundle_dir, "weights.safetensors"))
         assert os.path.exists(os.path.join(bundle_dir, "manifest.json"))

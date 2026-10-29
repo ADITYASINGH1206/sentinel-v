@@ -1,29 +1,28 @@
-import asyncio
-import os
-from pathlib import Path
 import tempfile
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 from sqlalchemy import select
-
 from sv_api.database import async_session_maker
 from sv_api.models import AnalysisModel, Media
 from sv_api.sse import publish_progress
 from sv_core.settings import settings
-from sv_engine.adapters.base import ClipBatch
 from sv_engine.preprocess import MockFaceDetector, preprocess_video
 from sv_engine.preprocess.clips import ProcessedTrackClips
 from sv_workers.celery_app import celery_app
 from sv_workers.tasks.utils import run_async
 
 
-def save_tracks_npz(tracks: List[ProcessedTrackClips], npz_path: str) -> None:
+def save_tracks_npz(tracks: list[ProcessedTrackClips], npz_path: str) -> None:
     """Serialize processed tracks into NPZ archive for worker handoff."""
     data = {"num_tracks": len(tracks)}
     for i, t in enumerate(tracks):
         data[f"track_{i}_frames_u8"] = t.batch.frames_u8
         data[f"track_{i}_landmarks106"] = (
-            t.batch.landmarks106 if t.batch.landmarks106 is not None else np.empty((0,), dtype=np.float32)
+            t.batch.landmarks106
+            if t.batch.landmarks106 is not None
+            else np.empty((0,), dtype=np.float32)
         )
         data[f"track_{i}_conf"] = t.batch.conf
         data[f"track_{i}_frame_numbers"] = t.frame_numbers
@@ -34,18 +33,12 @@ def save_tracks_npz(tracks: List[ProcessedTrackClips], npz_path: str) -> None:
     np.savez_compressed(npz_path, **data)
 
 
-async def _async_preprocess(analysis_id: str, media_path: str) -> Dict[str, Any]:
+async def _async_preprocess(analysis_id: str, media_path: str) -> dict[str, Any]:
     """Execute preprocessing: decode, detect, track, align, and form clips."""
     detector = MockFaceDetector() if settings.ENGINE_MODE == "mock" else None
-    
+
     # Run CPU/GPU preprocessing pipeline
-    prep_res = preprocess_video(
-        video_path=media_path,
-        detector=detector,
-        max_tracks=4,
-        K=8,
-        T=8
-    )
+    prep_res = preprocess_video(video_path=media_path, detector=detector, max_tracks=4, K=8, T=8)
 
     async with async_session_maker() as session:
         stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
@@ -72,14 +65,15 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> Dict[str, Any]
             analysis.decision = "inconclusive"
             analysis.inconclusive_reason = prep_res.inconclusive_reason.value
             await session.commit()
-            
+
             await publish_progress(
                 analysis_id,
                 "preprocess",
                 60,
-                f"Inconclusive criteria met: {prep_res.inconclusive_reason.value}"
+                f"Inconclusive criteria met: {prep_res.inconclusive_reason.value}",
             )
             from sv_workers.tasks.finalize import run_finalize
+
             if celery_app.conf.task_always_eager:
                 return run_finalize.delay(analysis_id, inconclusive=True)
             try:
@@ -92,7 +86,7 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> Dict[str, Any]
             analysis_id,
             "preprocess",
             50,
-            f"Preprocessed {len(prep_res.tracks)} face tracks (K=8, T=8 clips)"
+            f"Preprocessed {len(prep_res.tracks)} face tracks (K=8, T=8 clips)",
         )
 
     # Save NPZ archive for GPU worker
@@ -103,6 +97,7 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> Dict[str, Any]
 
     # Proceed to GPU inference cascade
     from sv_workers.tasks.gpu import run_gpu
+
     if celery_app.conf.task_always_eager:
         return run_gpu.delay(analysis_id, npz_path)
     try:

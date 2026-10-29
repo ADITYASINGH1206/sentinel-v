@@ -1,8 +1,8 @@
 import os
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
-
 from sv_core.settings import settings
 
 Base = declarative_base()
@@ -15,18 +15,10 @@ def get_database_url() -> str:
     return url
 
 
-engine = create_async_engine(
-    get_database_url(),
-    echo=False,
-    future=True
-)
+engine = create_async_engine(get_database_url(), echo=False, future=True)
 
 async_session_maker = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False
+    engine, class_=AsyncSession, expire_on_commit=False, autocommit=False, autoflush=False
 )
 
 

@@ -1,11 +1,12 @@
 import asyncio
 import concurrent.futures
-from typing import Any, Coroutine
+from collections.abc import Coroutine
+from typing import Any
 
 
 def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
     """Safely run an async coroutine from sync Celery tasks.
-    
+
     If invoked from a thread where an event loop is already running (e.g. FastAPI TestClient),
     dispatches the coroutine to a dedicated thread pool to avoid 'asyncio.run() cannot be
     called from a running event loop' errors.
@@ -21,4 +22,3 @@ def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
             return future.result()
     else:
         return asyncio.run(coro)
-

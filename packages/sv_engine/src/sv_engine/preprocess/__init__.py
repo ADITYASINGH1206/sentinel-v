@@ -1,9 +1,20 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
-import numpy as np
 
+import numpy as np
 from sv_core.enums import InconclusiveReason
+
+from sv_engine.preprocess.align import (
+    align_and_crop,
+    warp_landmarks_224,
+)
+from sv_engine.preprocess.clips import (
+    ProcessedTrackClips,
+    build_track_clips,
+    contiguous_starts,
+    evaluate_inconclusive,
+    serialize_track_npz,
+)
 from sv_engine.preprocess.decode import (
     DecodedFrame,
     DecodeError,
@@ -20,23 +31,12 @@ from sv_engine.preprocess.tracks import (
     compute_iou,
     track_faces_multi,
 )
-from sv_engine.preprocess.align import (
-    align_and_crop,
-    warp_landmarks_224,
-)
-from sv_engine.preprocess.clips import (
-    ProcessedTrackClips,
-    build_track_clips,
-    contiguous_starts,
-    evaluate_inconclusive,
-    serialize_track_npz,
-)
 
 
 @dataclass(frozen=True)
 class PreprocessResult:
-    tracks: List[ProcessedTrackClips]
-    inconclusive_reason: Optional[InconclusiveReason]
+    tracks: list[ProcessedTrackClips]
+    inconclusive_reason: InconclusiveReason | None
     metadata: VideoMetadata
     total_decoded_frames: int
     frames_with_detections: int
@@ -44,15 +44,15 @@ class PreprocessResult:
 
 def preprocess_video(
     video_path: str,
-    detector: Optional[object] = None,
+    detector: object | None = None,
     max_tracks: int = 4,
     K: int = 8,
     T: int = 8,
     min_median_iod: float = 24.0,
-    min_track_frames: int = 8
+    min_track_frames: int = 8,
 ) -> PreprocessResult:
     """Execute end-to-end video preprocessing pipeline.
-    
+
     1. Validate and sanitize video_path against traversal and non-existent targets.
     2. Decode video frames with PyAV (respecting rotation & sampling windows).
     3. Detect faces with SCRFD or Mock detector.
@@ -88,7 +88,7 @@ def preprocess_video(
         frame_detections=frame_detections,
         max_tracks=max_tracks,
         min_track_frames=min_track_frames,
-        min_median_iod=min_median_iod
+        min_median_iod=min_median_iod,
     )
 
     processed_tracks = []
@@ -101,7 +101,7 @@ def preprocess_video(
         total_decoded_frames=len(decoded_frames),
         frames_with_detections=frames_with_faces,
         tracks=smoothed_tracks,
-        all_raw_iods=all_iods
+        all_raw_iods=all_iods,
     )
 
     # Ensure inconclusive if no viable track clips were produced
@@ -113,7 +113,7 @@ def preprocess_video(
         inconclusive_reason=inconclusive_reason,
         metadata=metadata,
         total_decoded_frames=len(decoded_frames),
-        frames_with_detections=frames_with_faces
+        frames_with_detections=frames_with_faces,
     )
 
 

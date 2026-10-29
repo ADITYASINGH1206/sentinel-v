@@ -1,10 +1,10 @@
 import io
 import os
 import tempfile
+
 import cv2
 import numpy as np
 import pytest
-
 from sv_core.enums import InconclusiveReason
 from sv_engine.preprocess import (
     MockFaceDetector,
@@ -19,7 +19,6 @@ from sv_engine.preprocess import (
     track_faces_multi,
     warp_landmarks_224,
 )
-from sv_engine.preprocess.faces import FaceDetection
 
 
 @pytest.fixture
@@ -67,13 +66,10 @@ def test_compute_iou():
 
 def test_align_and_crop():
     frame = np.ones((240, 320, 3), dtype=np.uint8) * 128
-    kps5 = np.array([
-        [140.0, 100.0],
-        [180.0, 100.0],
-        [160.0, 120.0],
-        [145.0, 140.0],
-        [175.0, 140.0]
-    ], dtype=np.float32)
+    kps5 = np.array(
+        [[140.0, 100.0], [180.0, 100.0], [160.0, 120.0], [145.0, 140.0], [175.0, 140.0]],
+        dtype=np.float32,
+    )
 
     crop_224, M, M_224 = align_and_crop(frame, kps5, out_store=256, crop_size=224)
     assert crop_224 is not None
@@ -106,7 +102,7 @@ def test_contiguous_starts():
 def test_track_faces_multi():
     detector = MockFaceDetector(face_present=True, ioc_dist=35.0)
     frame = np.zeros((240, 320, 3), dtype=np.uint8)
-    
+
     frame_detections = []
     for i in range(12):
         dets = detector.detect(frame)
@@ -124,7 +120,7 @@ def test_track_faces_multi():
 def test_build_track_clips_and_serialize():
     detector = MockFaceDetector(face_present=True, ioc_dist=35.0)
     frame = np.zeros((240, 320, 3), dtype=np.uint8)
-    
+
     frame_detections = [(i, frame, detector.detect(frame)) for i in range(16)]
     tracks = track_faces_multi(frame_detections)
     assert len(tracks) == 1
@@ -150,7 +146,7 @@ def test_inconclusive_evaluations():
         total_decoded_frames=100,
         frames_with_detections=5,  # 5% < 10%
         tracks=[],
-        all_raw_iods=[]
+        all_raw_iods=[],
     )
     assert reason == InconclusiveReason.NO_FACE
 
@@ -159,7 +155,7 @@ def test_inconclusive_evaluations():
         total_decoded_frames=50,
         frames_with_detections=40,
         tracks=[],
-        all_raw_iods=[15.0, 16.0, 18.0]  # < 24 px
+        all_raw_iods=[15.0, 16.0, 18.0],  # < 24 px
     )
     assert reason == InconclusiveReason.FACE_TOO_SMALL
 
@@ -168,7 +164,7 @@ def test_inconclusive_evaluations():
         total_decoded_frames=50,
         frames_with_detections=40,
         tracks=[],
-        all_raw_iods=[35.0, 40.0]  # Good IOD but track dropped for length < 8
+        all_raw_iods=[35.0, 40.0],  # Good IOD but track dropped for length < 8
     )
     assert reason == InconclusiveReason.TOO_FEW_FRAMES
 
@@ -176,11 +172,7 @@ def test_inconclusive_evaluations():
 def test_full_preprocessing_pipeline(synthetic_video_path):
     detector = MockFaceDetector(face_present=True, ioc_dist=35.0)
     result = preprocess_video(
-        video_path=synthetic_video_path,
-        detector=detector,
-        max_tracks=4,
-        K=8,
-        T=8
+        video_path=synthetic_video_path, detector=detector, max_tracks=4, K=8, T=8
     )
 
     assert result.inconclusive_reason is None
@@ -189,7 +181,6 @@ def test_full_preprocessing_pipeline(synthetic_video_path):
     assert track_clip.batch.frames_u8.shape == (8, 8, 224, 224, 3)
     assert result.metadata.total_frames == 16
     assert result.total_decoded_frames == 16
-
 
 
 def test_corrupt_and_empty_video():
@@ -268,22 +259,25 @@ def test_iou_and_iod_boundaries():
 
     # IOD: 23.9 (dropped) vs 24.0 (retained)
     frame = np.zeros((240, 320, 3), dtype=np.uint8)
-    dets_sub24 = [(i, frame, MockFaceDetector(face_present=True, ioc_dist=23.9).detect(frame)) for i in range(10)]
+    dets_sub24 = [
+        (i, frame, MockFaceDetector(face_present=True, ioc_dist=23.9).detect(frame))
+        for i in range(10)
+    ]
     assert len(track_faces_multi(dets_sub24, min_median_iod=24.0)) == 0
 
-    dets_exact24 = [(i, frame, MockFaceDetector(face_present=True, ioc_dist=24.0).detect(frame)) for i in range(10)]
+    dets_exact24 = [
+        (i, frame, MockFaceDetector(face_present=True, ioc_dist=24.0).detect(frame))
+        for i in range(10)
+    ]
     assert len(track_faces_multi(dets_exact24, min_median_iod=24.0)) == 1
 
 
 def test_affine_inversion_numerical_precision():
     frame = np.ones((240, 320, 3), dtype=np.uint8) * 128
-    kps5 = np.array([
-        [140.0, 100.0],
-        [180.0, 100.0],
-        [160.0, 120.0],
-        [145.0, 140.0],
-        [175.0, 140.0]
-    ], dtype=np.float32)
+    kps5 = np.array(
+        [[140.0, 100.0], [180.0, 100.0], [160.0, 120.0], [145.0, 140.0], [175.0, 140.0]],
+        dtype=np.float32,
+    )
 
     _, _, M_224 = align_and_crop(frame, kps5, out_store=256, crop_size=224)
     assert M_224 is not None
@@ -323,6 +317,7 @@ def test_rotation_handling():
 
     rot_270 = apply_rotation(img, 270)
     assert rot_270.shape == (200, 100, 3)
+
 
 def test_preprocess_video_path_validation():
     # Path traversal attempt should raise ValueError

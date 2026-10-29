@@ -1,16 +1,17 @@
 import os
+
 os.environ["SV_TESTING"] = "1"
 os.environ["SV_ENGINE_MODE"] = "mock"
 os.environ["SV_DATABASE_URL"] = "sqlite+aiosqlite:///./test_api.db"
 
-import io
+import asyncio
 import tempfile
+
 import cv2
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
-
 from sv_api.auth import (
     create_access_token,
     generate_api_key,
@@ -19,10 +20,9 @@ from sv_api.auth import (
     record_audit_log,
     verify_password,
 )
-import asyncio
 from sv_api.database import Base, async_session_maker, engine, init_db
 from sv_api.main import app
-from sv_api.models import AnalysisModel, ApiKey, AuditLog, User
+from sv_api.models import AuditLog
 
 
 @pytest.fixture(autouse=True)
@@ -97,7 +97,7 @@ async def test_audit_logging():
             resource_type="policy",
             resource_id="pol_strict_v3",
             user_id="usr_admin",
-            details={"changed": "threshold"}
+            details={"changed": "threshold"},
         )
 
         stmt = select(AuditLog).where(AuditLog.action == "policy.update")
@@ -124,7 +124,12 @@ def test_analysis_creation_and_pipeline(client, test_video_bytes):
     res_data = get_resp.json()
     assert res_data["id"] == analysis_id
     assert res_data["status"] == "completed"
-    assert res_data["decision"] in ("likely_authentic", "needs_review", "likely_manipulated", "inconclusive")
+    assert res_data["decision"] in (
+        "likely_authentic",
+        "needs_review",
+        "likely_manipulated",
+        "inconclusive",
+    )
     assert res_data["scores"] is not None
     assert "p_bal" in res_data["scores"]
     assert "p_prior" in res_data["scores"]
@@ -162,4 +167,3 @@ def test_sse_stream_endpoint(client):
     with client.stream("GET", "/v1/analyses/an_mock_stream/events") as resp:
         assert resp.status_code == 200
         assert "text/event-stream" in resp.headers["content-type"]
-

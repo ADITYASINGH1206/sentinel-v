@@ -1,10 +1,10 @@
 import os
-from typing import Any, Optional
+from typing import Any
+
 import numpy as np
 import torch
-import torch.nn as nn
 
-from sv_engine.adapters.base import ClipBatch, ClipOutput, DetectorAdapter, Variant
+from sv_engine.adapters.base import ClipBatch, ClipOutput, Variant
 from sv_engine.adapters.utils import (
     ensure_smsdt_in_path,
     load_state_dict_strict,
@@ -13,7 +13,7 @@ from sv_engine.adapters.utils import (
 )
 
 ensure_smsdt_in_path()
-from smsdt.models.clip_encoder import CLIPFrameEncoder, CLIP_MEAN, CLIP_STD
+from smsdt.models.clip_encoder import CLIP_MEAN, CLIP_STD, CLIPFrameEncoder
 from smsdt.models.smsdt_v2 import SMSDTv2
 
 try:
@@ -25,13 +25,15 @@ except ImportError:
 class ClipSAdapter:
     """Stage A Model Adapter: S-MSDT-S (Spatial-Only Screen with T=1 clip sampling)."""
 
-    def __init__(self, model_id: str = "smsdt-s-a", device: Optional[Any] = None):
+    def __init__(self, model_id: str = "smsdt-s-a", device: Any | None = None):
         self.model_id = model_id
         self.variant: Variant = "s"
         self.T: int = 1
         self.grid: int = 16
-        self.device = torch.device(device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu"))
-        self.model: Optional[SMSDTv2] = None
+        self.device = torch.device(
+            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
+        )
+        self.model: SMSDTv2 | None = None
 
     def normalize(self, frames_u8: Any) -> torch.Tensor:
         """Convert uint8 (N, T, 224, 224, 3) to float32 (N, T, 3, 224, 224) in CLIP normalization."""
@@ -50,12 +52,14 @@ class ClipSAdapter:
         std = torch.tensor(CLIP_STD, dtype=torch.float32, device=t.device).view(1, 1, 3, 1, 1)
         return (t - mean) / std
 
-    def load(self, bundle_dir: str, device: Optional[Any] = None) -> None:
+    def load(self, bundle_dir: str, device: Any | None = None) -> None:
         """Strictly load S-MSDT-S weights and initialize model offline."""
         if device is not None:
             self.device = torch.device(device)
 
-        if os.path.isdir(bundle_dir) and os.path.exists(os.path.join(bundle_dir, "checksums.sha256")):
+        if os.path.isdir(bundle_dir) and os.path.exists(
+            os.path.join(bundle_dir, "checksums.sha256")
+        ):
             verify_bundle_checksums(bundle_dir)
 
         config = None
@@ -91,11 +95,7 @@ class ClipSAdapter:
         logits_np = logits.detach().cpu().numpy()
         patch_np = patch_logits.detach().cpu().numpy() if patch_logits is not None else None
 
-        return ClipOutput(
-            logits=logits_np,
-            patch_logits=patch_np,
-            grid=self.grid
-        )
+        return ClipOutput(logits=logits_np, patch_logits=patch_np, grid=self.grid)
 
     def warmup(self) -> None:
         """Execute dummy forward pass to warm up CUDA kernels."""
@@ -103,4 +103,3 @@ class ClipSAdapter:
             dummy = torch.zeros((1, 1, 3, 224, 224), dtype=torch.float32, device=self.device)
             with torch.inference_mode():
                 _ = self.model(dummy)
-

@@ -1,15 +1,14 @@
 import argparse
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+
 import torch
 from safetensors.torch import save_file as save_safetensors
-
 from sv_engine.adapters.utils import clean_state_dict_keys, load_weights_dict
+
 from tools.fit_calibration import fit_calibration_and_metrics, load_validation_scores
 
 
@@ -47,7 +46,7 @@ def create_offline_clip_config(out_dir: str) -> str:
         "num_attention_heads": 16,
         "num_hidden_layers": 24,
         "patch_size": 14,
-        "projection_dim": 768
+        "projection_dim": 768,
     }
     cfg_path = os.path.join(out_dir, "clip_config.json")
     with open(cfg_path, "w", encoding="utf-8") as f:
@@ -58,9 +57,9 @@ def create_offline_clip_config(out_dir: str) -> str:
 def build_bundle(
     ckpt_path: str,
     variant: str,
-    val_scores_csv: Optional[str] = None,
-    out_dir: Optional[str] = None,
-    bundle_id: Optional[str] = None
+    val_scores_csv: str | None = None,
+    out_dir: str | None = None,
+    bundle_id: str | None = None,
 ) -> str:
     """Convert checkpoint to immutable model bundle with safetensors and checksums."""
     v = variant.lower().strip()
@@ -70,10 +69,12 @@ def build_bundle(
         "cnn": ("smsdt-cnn-p1", "S-MSDT-CNN"),
     }
     if v not in arch_map:
-        raise ValueError(f"Unsupported bundle variant: {variant}. Supported: {list(arch_map.keys())}")
+        raise ValueError(
+            f"Unsupported bundle variant: {variant}. Supported: {list(arch_map.keys())}"
+        )
 
     variant_id, arch_name = arch_map[v]
-    now_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    now_str = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     bid = bundle_id or f"bundle-{v}-{now_str}"
     target_dir = out_dir or os.path.join("models", bid)
     os.makedirs(target_dir, exist_ok=True)
@@ -111,15 +112,18 @@ def build_bundle(
                 "method": "platt",
                 "parameters": {"a": 0.6470, "b": -0.5865},
                 "youden_tau_star": 0.7507,
-                "calibration_sample_size": 0
+                "calibration_sample_size": 0,
             }
             op_dict = {
                 "model_id": variant_id,
                 "validation_auc": 0.938,
                 "youden_optimal": {"threshold": 0.7507, "tpr": 0.785},
-                "fixed_fpr_points": [{"target_fpr": 0.01, "tpr": 0.471}, {"target_fpr": 0.05, "tpr": 0.589}],
+                "fixed_fpr_points": [
+                    {"target_fpr": 0.01, "tpr": 0.471},
+                    {"target_fpr": 0.05, "tpr": 0.589},
+                ],
                 "expected_calibration_error": 0.184,
-                "n_bins": 15
+                "n_bins": 15,
             }
         else:
             calib_dict = {
@@ -127,15 +131,18 @@ def build_bundle(
                 "method": "platt",
                 "parameters": {"a": 1.0, "b": 0.0},
                 "youden_tau_star": 0.5,
-                "calibration_sample_size": 0
+                "calibration_sample_size": 0,
             }
             op_dict = {
                 "model_id": variant_id,
                 "validation_auc": 0.90,
                 "youden_optimal": {"threshold": 0.5, "tpr": 0.80},
-                "fixed_fpr_points": [{"target_fpr": 0.01, "tpr": 0.40}, {"target_fpr": 0.05, "tpr": 0.50}],
+                "fixed_fpr_points": [
+                    {"target_fpr": 0.01, "tpr": 0.40},
+                    {"target_fpr": 0.05, "tpr": 0.50},
+                ],
                 "expected_calibration_error": 0.20,
-                "n_bins": 15
+                "n_bins": 15,
             }
 
     calib_out = os.path.join(target_dir, "calibration.json")
@@ -153,11 +160,11 @@ def build_bundle(
         "variant": v,
         "variant_id": variant_id,
         "architecture": arch_name,
-        "created_at": datetime.now(timezone.utc).isoformat() + "Z",
+        "created_at": datetime.now(UTC).isoformat() + "Z",
         "git_commit": get_git_commit(),
         "weights_format": "safetensors",
         "weights_sha256": weights_sha256,
-        "calibration_sha256": calib_sha256
+        "calibration_sha256": calib_sha256,
     }
     manifest_out = os.path.join(target_dir, "manifest.json")
     with open(manifest_out, "w", encoding="utf-8") as f:
@@ -184,9 +191,22 @@ def build_bundle(
 def main():
     parser = argparse.ArgumentParser(description="Build S-MSDT immutable model bundle")
     parser.add_argument("--ckpt", type=str, required=True, help="Path to input .pt checkpoint")
-    parser.add_argument("--variant", type=str, required=True, choices=["st", "s", "cnn"], help="Variant: st, s, or cnn")
-    parser.add_argument("--val-scores", type=str, default=None, help="Path to validation scores CSV")
-    parser.add_argument("--out", type=str, default=None, help="Output bundle directory (default: models/bundle-<variant>-<timestamp>)")
+    parser.add_argument(
+        "--variant",
+        type=str,
+        required=True,
+        choices=["st", "s", "cnn"],
+        help="Variant: st, s, or cnn",
+    )
+    parser.add_argument(
+        "--val-scores", type=str, default=None, help="Path to validation scores CSV"
+    )
+    parser.add_argument(
+        "--out",
+        type=str,
+        default=None,
+        help="Output bundle directory (default: models/bundle-<variant>-<timestamp>)",
+    )
     parser.add_argument("--bundle-id", type=str, default=None, help="Optional bundle ID override")
     args = parser.parse_args()
 
@@ -195,10 +215,9 @@ def main():
         variant=args.variant,
         val_scores_csv=args.val_scores,
         out_dir=args.out,
-        bundle_id=args.bundle_id
+        bundle_id=args.bundle_id,
     )
 
 
 if __name__ == "__main__":
     main()
-

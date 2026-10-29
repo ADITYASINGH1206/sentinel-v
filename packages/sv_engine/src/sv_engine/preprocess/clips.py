@@ -1,15 +1,15 @@
-from dataclasses import dataclass
 import io
-from typing import Dict, List, Optional, Tuple
-import numpy as np
+from dataclasses import dataclass
 
+import numpy as np
 from sv_core.enums import InconclusiveReason
+
 from sv_engine.adapters.base import ClipBatch
 from sv_engine.preprocess.align import align_and_crop, warp_landmarks_224
 from sv_engine.preprocess.tracks import SmoothedTrack
 
 
-def contiguous_starts(fidx: np.ndarray, T: int = 8, stride: int = 1) -> List[int]:
+def contiguous_starts(fidx: np.ndarray, T: int = 8, stride: int = 1) -> list[int]:
     """Find start indices where fidx has a contiguous run of T consecutive frame numbers."""
     if len(fidx) < T * stride:
         return []
@@ -20,30 +20,26 @@ def contiguous_starts(fidx: np.ndarray, T: int = 8, stride: int = 1) -> List[int
 @dataclass(frozen=True)
 class ProcessedTrackClips:
     track_id: int
-    batch: ClipBatch                 # ClipBatch(frames_u8=(K, T, 224, 224, 3), lmk=(K, T, 106, 2), conf=(K, T))
-    chosen_starts: List[int]         # K start indices
-    frame_numbers: np.ndarray        # (K, T) original video frame indices
-    M: np.ndarray                    # (K, T, 2, 3) 256-space affine matrices
-    M_224: np.ndarray                # (K, T, 2, 3) 224-space affine matrices
+    batch: ClipBatch  # ClipBatch(frames_u8=(K, T, 224, 224, 3), lmk=(K, T, 106, 2), conf=(K, T))
+    chosen_starts: list[int]  # K start indices
+    frame_numbers: np.ndarray  # (K, T) original video frame indices
+    M: np.ndarray  # (K, T, 2, 3) 256-space affine matrices
+    M_224: np.ndarray  # (K, T, 2, 3) 224-space affine matrices
     median_iod: float
 
 
 def build_track_clips(
-    track: SmoothedTrack,
-    K: int = 8,
-    T: int = 8,
-    stride: int = 1,
-    crop_size: int = 224
-) -> Optional[ProcessedTrackClips]:
+    track: SmoothedTrack, K: int = 8, T: int = 8, stride: int = 1, crop_size: int = 224
+) -> ProcessedTrackClips | None:
     """Build K clips of T contiguous frames from a smoothed track.
-    
+
     Args:
         track: SmoothedTrack instance
         K: number of clips to extract (default 8)
         T: number of contiguous frames per clip (default 8)
         stride: frame step (default 1)
         crop_size: model input resolution (default 224)
-        
+
     Returns:
         ProcessedTrackClips or None if insufficient contiguous frames
     """
@@ -91,11 +87,7 @@ def build_track_clips(
             clips_M[k_idx, t_idx] = M
             clips_M_224[k_idx, t_idx] = M_224
 
-    batch = ClipBatch(
-        frames_u8=clips_frames,
-        landmarks106=clips_lmk,
-        conf=clips_conf
-    )
+    batch = ClipBatch(frames_u8=clips_frames, landmarks106=clips_lmk, conf=clips_conf)
 
     return ProcessedTrackClips(
         track_id=track.track_id,
@@ -104,7 +96,7 @@ def build_track_clips(
         frame_numbers=clips_fidx,
         M=clips_M,
         M_224=clips_M_224,
-        median_iod=track.median_iod
+        median_iod=track.median_iod,
     )
 
 
@@ -120,7 +112,7 @@ def serialize_track_npz(processed: ProcessedTrackClips) -> bytes:
         M=processed.M,
         M_224=processed.M_224,
         track_id=np.array(processed.track_id, dtype=np.int32),
-        median_iod=np.array(processed.median_iod, dtype=np.float32)
+        median_iod=np.array(processed.median_iod, dtype=np.float32),
     )
     return buf.getvalue()
 
@@ -128,11 +120,11 @@ def serialize_track_npz(processed: ProcessedTrackClips) -> bytes:
 def evaluate_inconclusive(
     total_decoded_frames: int,
     frames_with_detections: int,
-    tracks: List[SmoothedTrack],
-    all_raw_iods: List[float]
-) -> Optional[InconclusiveReason]:
+    tracks: list[SmoothedTrack],
+    all_raw_iods: list[float],
+) -> InconclusiveReason | None:
     """Check if video analysis must be declared inconclusive.
-    
+
     Rules:
     - >= 90% frames without faces -> NO_FACE
     - faces detected but all tracks dropped due to median IOD < 24px -> FACE_TOO_SMALL
@@ -152,4 +144,3 @@ def evaluate_inconclusive(
         return InconclusiveReason.TOO_FEW_FRAMES
 
     return None
-

@@ -2,10 +2,10 @@ import argparse
 import csv
 import json
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
+
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
-
 from sv_engine.calibration import apply_platt, fit_platt
 
 
@@ -37,11 +37,11 @@ def compute_youden_tau(p: np.ndarray, y: np.ndarray) -> float:
     return float(thr[idx])
 
 
-def load_validation_scores(csv_path: str) -> Tuple[np.ndarray, np.ndarray]:
+def load_validation_scores(csv_path: str) -> tuple[np.ndarray, np.ndarray]:
     """Load logits/scores and binary labels from CSV (expects columns 'u' or 'score' and 'label' or 'y')."""
     scores = []
     labels = []
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             score_val = row.get("u") or row.get("score") or row.get("logit") or row.get("p_raw")
@@ -55,10 +55,8 @@ def load_validation_scores(csv_path: str) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def fit_calibration_and_metrics(
-    u_scores: np.ndarray,
-    labels: np.ndarray,
-    variant_id: str = "smsdt-st-b"
-) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    u_scores: np.ndarray, labels: np.ndarray, variant_id: str = "smsdt-st-b"
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Fit class-balanced Platt scaling and calculate standardized operating points."""
     # 1. Fit Platt parameters (a, b)
     a, b = fit_platt(u_scores, labels)
@@ -76,12 +74,9 @@ def fit_calibration_and_metrics(
     calibration_dict = {
         "model_id": variant_id,
         "method": "platt",
-        "parameters": {
-            "a": round(float(a), 4),
-            "b": round(float(b), 4)
-        },
+        "parameters": {"a": round(float(a), 4), "b": round(float(b), 4)},
         "youden_tau_star": round(float(tau_star), 4),
-        "calibration_sample_size": int(len(labels))
+        "calibration_sample_size": int(len(labels)),
     }
 
     operating_points_dict = {
@@ -93,19 +88,28 @@ def fit_calibration_and_metrics(
         },
         "fixed_fpr_points": [
             {"target_fpr": 0.01, "tpr": round(float(tpr_1pct), 4)},
-            {"target_fpr": 0.05, "tpr": round(float(tpr_5pct), 4)}
+            {"target_fpr": 0.05, "tpr": round(float(tpr_5pct), 4)},
         ],
         "expected_calibration_error": round(float(ece), 4),
-        "n_bins": 15
+        "n_bins": 15,
     }
 
     return calibration_dict, operating_points_dict
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fit Platt calibration and compute operating points")
-    parser.add_argument("--scores", type=str, required=True, help="Path to validation scores CSV (u, label)")
-    parser.add_argument("--out-dir", type=str, default=".", help="Directory to save calibration.json and operating_points.json")
+    parser = argparse.ArgumentParser(
+        description="Fit Platt calibration and compute operating points"
+    )
+    parser.add_argument(
+        "--scores", type=str, required=True, help="Path to validation scores CSV (u, label)"
+    )
+    parser.add_argument(
+        "--out-dir",
+        type=str,
+        default=".",
+        help="Directory to save calibration.json and operating_points.json",
+    )
     parser.add_argument("--variant", type=str, default="smsdt-st-b", help="Model variant ID")
     args = parser.parse_args()
 
@@ -127,4 +131,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

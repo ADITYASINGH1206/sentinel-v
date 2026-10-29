@@ -1,17 +1,16 @@
-from datetime import datetime, timezone
 import json
 import os
 import tempfile
 import uuid
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from sv_api.database import get_db
-from sv_api.models import AnalysisModel, Media, TrackModel
+from sv_api.models import AnalysisModel
 from sv_api.sse import subscribe_events
 from sv_core.enums import AnalysisStatus, DecisionBand
 from sv_core.schemas import (
@@ -31,11 +30,11 @@ router = APIRouter()
 
 @router.post("", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 async def create_analysis(
-    req: Optional[AnalysisCreate] = None,
-    file: Optional[UploadFile] = File(None),
-    policy_id: Optional[str] = Form(None),
-    source_url: Optional[str] = Form(None),
-    db: AsyncSession = Depends(get_db)
+    req: AnalysisCreate | None = None,
+    file: UploadFile | None = File(None),
+    policy_id: str | None = Form(None),
+    source_url: str | None = Form(None),
+    db: AsyncSession = Depends(get_db),
 ):
     """Submit a video for calibrated deepfake screening (multipart upload or URL)."""
     analysis_id = f"an_{uuid.uuid4().hex[:16]}"
@@ -62,13 +61,14 @@ async def create_analysis(
         policy_id=chosen_policy,
         policy_version=3,
         model_bundle_id=settings.MODEL_BUNDLE,
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None)
+        created_at=datetime.now(UTC).replace(tzinfo=None),
     )
     db.add(analysis_model)
     await db.commit()
 
     # Trigger worker ingest pipeline
     from sv_workers.celery_app import celery_app
+
     if celery_app.conf.task_always_eager:
         run_ingest.delay(analysis_id, temp_path, target_url)
     else:
@@ -77,17 +77,11 @@ async def create_analysis(
         except Exception:
             run_ingest(analysis_id, temp_path, target_url)
 
-    return {
-        "analysis_id": analysis_id,
-        "status": AnalysisStatus.QUEUED.value
-    }
+    return {"analysis_id": analysis_id, "status": AnalysisStatus.QUEUED.value}
 
 
 @router.get("/{analysis_id}", response_model=Analysis)
-async def get_analysis(
-    analysis_id: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
     """Retrieve complete analysis record with calibrated scores, tracks, and receipts."""
     stmt = (
         select(AnalysisModel)
@@ -99,8 +93,7 @@ async def get_analysis(
 
     if not model:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Analysis {analysis_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Analysis {analysis_id} not found"
         )
 
     # Map MediaInfo
@@ -115,12 +108,12 @@ async def get_analysis(
             fps=model.media.fps or 30.0,
             codec=model.media.codec or "unknown",
             container=model.media.container or "mp4",
-            deleted=model.media.deleted
+            deleted=model.media.deleted,
         )
 
     # Map Tracks
-    track_results: List[TrackResult] = []
-    for trk in (model.tracks or []):
+    track_results: list[TrackResult] = []
+    for trk in model.tracks or []:
         clips_list = []
         if trk.clips:
             try:
@@ -129,14 +122,16 @@ async def get_analysis(
             except Exception:
                 pass
 
-        track_results.append(TrackResult(
-            track_idx=trk.track_idx,
-            n_frames=trk.n_frames,
-            u=trk.u,
-            p_bal=trk.p_bal,
-            decisive=trk.decisive,
-            clips=clips_list
-        ))
+        track_results.append(
+            TrackResult(
+                track_idx=trk.track_idx,
+                n_frames=trk.n_frames,
+                u=trk.u,
+                p_bal=trk.p_bal,
+                decisive=trk.decisive,
+                clips=clips_list,
+            )
+        )
 
     # Parse Scores
     scores_obj = None
@@ -176,7 +171,7 @@ async def get_analysis(
         cache_hit=model.cache_hit,
         created_at=model.created_at,
         completed_at=model.completed_at,
-        mock=(settings.ENGINE_MODE == "mock")
+        mock=(settings.ENGINE_MODE == "mock"),
     )
 
 
@@ -189,16 +184,13 @@ async def get_analysis_events(analysis_id: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
 @router.get("/{analysis_id}/evidence")
-async def get_analysis_evidence(
-    analysis_id: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def get_analysis_evidence(analysis_id: str, db: AsyncSession = Depends(get_db)):
     """Retrieve presigned evidence artifacts (WebP patch maps, overlay MP4)."""
     stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
     res = await db.execute(stmt)
@@ -210,5 +202,5 @@ async def get_analysis_evidence(
         "analysis_id": analysis_id,
         "manifest_url": f"/v1/analyses/{analysis_id}/evidence/manifest.json",
         "overlay_url": f"/v1/analyses/{analysis_id}/evidence/overlay.mp4",
-        "webp_frames_url": f"/v1/analyses/{analysis_id}/evidence/frames/"
+        "webp_frames_url": f"/v1/analyses/{analysis_id}/evidence/frames/",
     }

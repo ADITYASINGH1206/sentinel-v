@@ -1,16 +1,13 @@
-import asyncio
-from datetime import datetime, timezone
 import json
 import secrets
-from typing import Any, Dict
-import numpy as np
-from sqlalchemy import select
+from datetime import UTC, datetime
+from typing import Any
 
+from sqlalchemy import select
 from sv_api.database import async_session_maker
-from sv_api.models import AnalysisModel, Media, TrackModel
+from sv_api.models import AnalysisModel, TrackModel
 from sv_api.sse import publish_progress
 from sv_core.enums import DecisionBand
-from sv_core.settings import settings
 from sv_engine.calibration import calibrate_platt
 from sv_engine.priors import adjust_for_prior, estimate_ppv
 from sv_receipts.crypto import generate_keypair
@@ -23,9 +20,9 @@ PLATT_A = 0.6470
 PLATT_B = -0.5865
 
 
-async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> Dict[str, Any]:
+async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[str, Any]:
     """Execute final aggregation, calibration, receipt signing, and event notification."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     async with async_session_maker() as session:
         stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
         res = await session.execute(stmt)
@@ -44,7 +41,7 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> Dict[
                 analysis_id,
                 "finalize",
                 100,
-                f"Analysis completed: inconclusive ({analysis.inconclusive_reason})"
+                f"Analysis completed: inconclusive ({analysis.inconclusive_reason})",
             )
             return {"analysis_id": analysis_id, "status": "completed", "decision": "inconclusive"}
 
@@ -77,7 +74,7 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> Dict[
             "p_bal": round(p_bal, 4),
             "p_prior": round(p_prior, 4),
             "prior_prevalence": prior_prev,
-            "ppv_estimate": round(ppv, 4)
+            "ppv_estimate": round(ppv, 4),
         }
 
         # Build Detection Receipt
@@ -89,36 +86,40 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> Dict[
             "score": scores_summary["p_bal"],
             "model_version": "smsdt-st-b",
             "policy_version": analysis.policy_version,
-            "timestamp": now.isoformat() + "Z"
+            "timestamp": now.isoformat() + "Z",
         }
         signed_rcpt = sign_receipt(receipt_dict, priv_key)
 
         analysis.status = "completed"
         analysis.decision = decision
         analysis.scores = json.dumps(scores_summary)
-        analysis.cascade = json.dumps({
-            "stage1_model": "smsdt-s-a",
-            "stage1_p_bal": p_bal,
-            "stage2_model": "smsdt-st-b",
-            "exited_early": False
-        })
+        analysis.cascade = json.dumps(
+            {
+                "stage1_model": "smsdt-s-a",
+                "stage1_p_bal": p_bal,
+                "stage2_model": "smsdt-st-b",
+                "exited_early": False,
+            }
+        )
         analysis.receipt_id = signed_rcpt["receipt_id"]
         analysis.completed_at = now
-        analysis.review_status = "pending_review" if decision == DecisionBand.NEEDS_REVIEW.value else "not_required"
+        analysis.review_status = (
+            "pending_review" if decision == DecisionBand.NEEDS_REVIEW.value else "not_required"
+        )
         await session.commit()
 
         await publish_progress(
             analysis_id,
             "finalize",
             100,
-            f"Screening complete: calibrated score {p_bal:.2f} ({decision})"
+            f"Screening complete: calibrated score {p_bal:.2f} ({decision})",
         )
 
         return {
             "analysis_id": analysis_id,
             "status": "completed",
             "decision": decision,
-            "p_bal": p_bal
+            "p_bal": p_bal,
         }
 
 

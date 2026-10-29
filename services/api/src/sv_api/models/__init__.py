@@ -1,6 +1,5 @@
 from datetime import datetime
-import json
-from typing import Any, Dict, Optional
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -12,7 +11,6 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.orm import relationship
-
 from sv_api.database import Base
 
 
@@ -81,16 +79,16 @@ class AnalysisModel(Base):
     model_bundle_id = Column(String(64), default="default", nullable=False)
     decision = Column(String(32), nullable=True)
     inconclusive_reason = Column(String(32), nullable=True)
-    scores = Column(Text, nullable=True)       # JSON-serialized ScoresSummary
-    cascade = Column(Text, nullable=True)      # JSON-serialized CascadeInfo
-    signals = Column(Text, nullable=True)      # JSON-serialized signals
-    labels = Column(Text, nullable=True)       # JSON-serialized labels
-    models = Column(Text, nullable=True)       # JSON-serialized model list
-    timings_ms = Column(Text, nullable=True)   # JSON-serialized timings
+    scores = Column(Text, nullable=True)  # JSON-serialized ScoresSummary
+    cascade = Column(Text, nullable=True)  # JSON-serialized CascadeInfo
+    signals = Column(Text, nullable=True)  # JSON-serialized signals
+    labels = Column(Text, nullable=True)  # JSON-serialized labels
+    models = Column(Text, nullable=True)  # JSON-serialized model list
+    timings_ms = Column(Text, nullable=True)  # JSON-serialized timings
     receipt_id = Column(String(64), nullable=True)
     review_status = Column(String(32), default="not_required", nullable=False)
     cache_hit = Column(Boolean, default=False, nullable=False)
-    error_info = Column(Text, nullable=True)   # JSON-serialized error detail
+    error_info = Column(Text, nullable=True)  # JSON-serialized error detail
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
 
@@ -141,4 +139,3 @@ class AuditLog(Base):
     resource_id = Column(String(64), nullable=False)
     details = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-

@@ -1,6 +1,7 @@
 import hashlib
 
 import numpy as np
+
 from sv_engine.adapters.base import ClipBatch, ClipOutput, DetectorAdapter, Variant
 
 

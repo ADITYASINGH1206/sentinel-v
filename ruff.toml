@@ -34,4 +34,7 @@ ignore = [
     "W291", # trailing whitespace
     "W293", # blank line contains whitespace
     "E741", # ambiguous variable name
+    "E402", # module level import not at top of file (submodule path inserts)
+    "B904", # raise from
+    "B007", # loop variable not used
 ]

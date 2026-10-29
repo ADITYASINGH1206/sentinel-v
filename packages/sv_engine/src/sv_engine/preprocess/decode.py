@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+
 import av
 import cv2
 import numpy as np
@@ -8,6 +8,7 @@ from sv_core.errors import SentinelVError
 
 class DecodeError(SentinelVError):
     """Raised when video container or stream cannot be decoded."""
+
     def __init__(self, message: str):
         super().__init__(code="DECODE_FAILURE", message=message)
 
@@ -61,12 +62,10 @@ def apply_rotation(frame_bgr: np.ndarray, rotation: int) -> np.ndarray:
 
 
 def compute_sampling_windows(
-    duration_s: float,
-    fps: float,
-    segment_len: int = 32
-) -> Optional[List[Tuple[int, int]]]:
+    duration_s: float, fps: float, segment_len: int = 32
+) -> list[tuple[int, int]] | None:
     """Compute frame ranges [start_frame, end_frame) to decode.
-    
+
     If duration <= 30s:
         Returns None (meaning decode all contiguous frames).
     If duration > 30s:
@@ -75,7 +74,7 @@ def compute_sampling_windows(
     if duration_s <= 30.0:
         return None
 
-    windows: List[Tuple[int, int]] = []
+    windows: list[tuple[int, int]] = []
     # 1. First 8 seconds
     first_8s_frames = int(round(8.0 * fps))
     windows.append((0, first_8s_frames))
@@ -93,23 +92,23 @@ def compute_sampling_windows(
             windows.append((w_start, w_end))
     else:
         if total_estimated_frames > remaining_start:
-            windows.append((remaining_start, min(total_estimated_frames, remaining_start + segment_len)))
+            windows.append(
+                (remaining_start, min(total_estimated_frames, remaining_start + segment_len))
+            )
 
     return windows
 
 
 def decode_video(
-    video_path: str,
-    max_frames_short: int = 250,
-    segment_len: int = 32
-) -> Tuple[VideoMetadata, List[DecodedFrame]]:
+    video_path: str, max_frames_short: int = 250, segment_len: int = 32
+) -> tuple[VideoMetadata, list[DecodedFrame]]:
     """Decode video with frame accuracy using PyAV, respecting rotation and sampling.
-    
+
     Args:
         video_path: path to video file
         max_frames_short: maximum frames to decode if video <= 30s
         segment_len: frame count per sampling window if video > 30s
-        
+
     Returns:
         (VideoMetadata, List[DecodedFrame])
     """
@@ -142,8 +141,6 @@ def decode_video(
     if rotation in (90, 270):
         width, height = height, width
 
-    total_stream_frames = stream.frames or int(round(duration_s * fps))
-
     windows = compute_sampling_windows(duration_s, fps, segment_len)
     if windows is not None:
         max_target_frame = max(end for _, end in windows)
@@ -152,7 +149,7 @@ def decode_video(
         if max_frames_short is not None:
             max_target_frame = min(max_target_frame, max_frames_short)
 
-    decoded_frames: List[DecodedFrame] = []
+    decoded_frames: list[DecodedFrame] = []
     frame_counter = 0
 
     try:
@@ -170,18 +167,18 @@ def decode_video(
                     if not in_window:
                         continue
 
-                pts_s = float(frame.pts * stream.time_base) if frame.pts is not None else (curr_idx / fps)
-                
+                pts_s = (
+                    float(frame.pts * stream.time_base)
+                    if frame.pts is not None
+                    else (curr_idx / fps)
+                )
+
                 # Convert to BGR uint8
                 bgr = frame.to_ndarray(format="bgr24")
                 if rotation != 0:
                     bgr = apply_rotation(bgr, rotation)
 
-                decoded_frames.append(DecodedFrame(
-                    frame_idx=curr_idx,
-                    pts_s=pts_s,
-                    bgr=bgr
-                ))
+                decoded_frames.append(DecodedFrame(frame_idx=curr_idx, pts_s=pts_s, bgr=bgr))
 
             if frame_counter >= max_target_frame:
                 break
@@ -201,7 +198,7 @@ def decode_video(
         height=height,
         codec=codec,
         rotation=rotation,
-        total_frames=frame_counter
+        total_frames=frame_counter,
     )
 
     return metadata, decoded_frames

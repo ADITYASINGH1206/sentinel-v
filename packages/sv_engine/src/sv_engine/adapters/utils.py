@@ -1,8 +1,9 @@
 import hashlib
 import os
-from pathlib import Path
 import sys
-from typing import Any, Dict, Optional, Tuple
+from pathlib import Path
+from typing import Any
+
 import torch
 from safetensors.torch import load_file as load_safetensors
 
@@ -19,7 +20,7 @@ def ensure_smsdt_in_path() -> None:
             return
 
 
-def clean_state_dict_keys(state_dict: Dict[str, Any]) -> Dict[str, Any]:
+def clean_state_dict_keys(state_dict: dict[str, Any]) -> dict[str, Any]:
     """Strip common wrapper prefixes ('module.', '_orig_mod.') from state dict keys."""
     cleaned = {}
     for k, v in state_dict.items():
@@ -32,7 +33,9 @@ def clean_state_dict_keys(state_dict: Dict[str, Any]) -> Dict[str, Any]:
     return cleaned
 
 
-def load_weights_dict(bundle_dir_or_file: str, device: torch.device = torch.device("cpu")) -> Dict[str, Any]:
+def load_weights_dict(
+    bundle_dir_or_file: str, device: torch.device = torch.device("cpu")
+) -> dict[str, Any]:
     """Load weights dictionary from either .safetensors or .pt checkpoint."""
     if os.path.isdir(bundle_dir_or_file):
         st_path = os.path.join(bundle_dir_or_file, "weights.safetensors")
@@ -42,7 +45,9 @@ def load_weights_dict(bundle_dir_or_file: str, device: torch.device = torch.devi
         elif os.path.exists(pt_path):
             path = pt_path
         else:
-            raise FileNotFoundError(f"Neither weights.safetensors nor weights.pt found in {bundle_dir_or_file}")
+            raise FileNotFoundError(
+                f"Neither weights.safetensors nor weights.pt found in {bundle_dir_or_file}"
+            )
     else:
         path = bundle_dir_or_file
 
@@ -61,7 +66,7 @@ def load_weights_dict(bundle_dir_or_file: str, device: torch.device = torch.devi
         return ckpt
 
 
-def load_state_dict_strict(model: torch.nn.Module, state_dict: Dict[str, Any]) -> None:
+def load_state_dict_strict(model: torch.nn.Module, state_dict: dict[str, Any]) -> None:
     """Strictly load state dict into model; assert missing_keys == [] and unexpected_keys == []."""
     cleaned = clean_state_dict_keys(state_dict)
     missing_keys, unexpected_keys = model.load_state_dict(cleaned, strict=False)
@@ -79,7 +84,7 @@ def verify_bundle_checksums(bundle_dir: str) -> bool:
     if not os.path.exists(checksums_path):
         raise FileNotFoundError(f"Missing checksums.sha256 in bundle directory {bundle_dir}")
 
-    with open(checksums_path, "r", encoding="utf-8") as f:
+    with open(checksums_path, encoding="utf-8") as f:
         lines = f.readlines()
 
     for line in lines:
@@ -94,7 +99,9 @@ def verify_bundle_checksums(bundle_dir: str) -> bool:
         file_path = os.path.join(bundle_dir, filename)
 
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Bundle asset '{filename}' listed in checksums.sha256 not found on disk")
+            raise FileNotFoundError(
+                f"Bundle asset '{filename}' listed in checksums.sha256 not found on disk"
+            )
 
         hasher = hashlib.sha256()
         with open(file_path, "rb") as f_asset:
@@ -110,4 +117,3 @@ def verify_bundle_checksums(bundle_dir: str) -> bool:
             )
 
     return True
-
