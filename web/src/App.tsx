@@ -1,49 +1,98 @@
 import React from 'react';
-import { BandChip } from './components/BandChip';
-import { ScoreReadout } from './components/ScoreReadout';
-import { REQUIRED_DISCLAIMER } from './copy/forbidden';
+import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Dashboard } from './routes/Dashboard';
+import { ReviewWorkspace } from './routes/ReviewWorkspace';
+import { CaseDetail } from './routes/CaseDetail';
 
-export function App() {
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   return (
     <div className="min-h-screen bg-bg text-text flex flex-col">
-      {/* Top bar */}
-      <header className="border-b border-border bg-surface px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="font-bold tracking-wider text-accent text-lg">SENTINEL-V</span>
-          <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs px-2 py-0.5 rounded font-mono font-medium">
-            MOCK MODE
-          </span>
-        </div>
-        <div className="text-xs text-muted">
-          Policy: strict-low-fpr v3
-        </div>
-      </header>
+      {/* Top Navigation Bar */}
+      <nav className="border-b border-border bg-surface px-6 py-2.5 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-6">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 font-bold tracking-wider text-accent text-sm"
+          >
+            <span>SENTINEL-V</span>
+            <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">
+              CONSOLE
+            </span>
+          </button>
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-8 max-w-5xl mx-auto w-full space-y-6">
-        <div className="bg-surface border border-border rounded-lg p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold">Video Deepfake Screening Workspace</h1>
-            <BandChip band="needs_review" />
+          <div className="flex items-center gap-1 border-l border-border pl-4">
+            <button
+              onClick={() => navigate('/')}
+              className={`px-3 py-1 rounded font-medium transition-colors ${
+                location.pathname === '/'
+                  ? 'bg-accent text-white'
+                  : 'text-muted hover:text-text hover:bg-bg'
+              }`}
+            >
+              Queue Dashboard
+            </button>
+            <button
+              onClick={() => navigate('/review')}
+              className={`px-3 py-1 rounded font-medium transition-colors ${
+                location.pathname === '/review'
+                  ? 'bg-accent text-white'
+                  : 'text-muted hover:text-text hover:bg-bg'
+              }`}
+            >
+              Review Workspace
+            </button>
           </div>
-
-          <ScoreReadout p_bal={0.62} p_prior={0.016} prior_prevalence={0.01} />
-
-          <div className="pt-4 border-t border-border">
-            <p className="text-xs text-muted font-medium italic">
-              {REQUIRED_DISCLAIMER}
-            </p>
-          </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-4 text-center text-xs text-muted bg-surface">
-        SENTINEL-V Reviewer Console &bull; Research Use Only &bull; S-MSDT Detector Family
-      </footer>
+        <div className="text-muted">
+          Lead: <span className="text-text font-mono">Aditya Raj (Track B)</span>
+        </div>
+      </nav>
+
+      {/* Route Views */}
+      <div className="flex-1">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Dashboard
+                onStartReview={() => navigate('/review')}
+                onViewCase={(id) => navigate(`/cases/${id}`)}
+              />
+            }
+          />
+          <Route path="/review" element={<ReviewWorkspace />} />
+          <Route
+            path="/cases/:id"
+            element={
+              <CaseDetailWrapper
+                onBack={() => navigate('/')}
+                onOpenReview={() => navigate('/review')}
+              />
+            }
+          />
+        </Routes>
+      </div>
     </div>
   );
 }
 
-export default App;
+function CaseDetailWrapper({ onBack, onOpenReview }: { onBack: () => void; onOpenReview: (id: string) => void }) {
+  const hash = window.location.hash;
+  const match = hash.match(/\/cases\/([^?]+)/);
+  const caseId = match ? match[1] : 'an_mock_default';
+  return <CaseDetail caseId={caseId} onBack={onBack} onOpenReview={onOpenReview} />;
+}
 
+export function App() {
+  return (
+    <HashRouter>
+      <AppContent />
+    </HashRouter>
+  );
+}
+
+export default App;

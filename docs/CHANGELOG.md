@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Milestone M5 (Reviewer Console SPA):**
+  - Interactive EvidencePlayer syncing video playback with canvas heatmap overlay and bounding boxes.
+  - ClipTimeline chart plotting clip anomaly probability over time with decision threshold $\tau$ and sampling windows.
+  - ReviewWorkspace route supporting full single-key review triage (`1/2/3`, `Enter`, `P`, `H`, `Space`).
+  - Dashboard route for review queue triage metrics and filterable case management.
+  - CaseDetail route for technical audit inspection, container specs, and detection receipts.
+  - Anti-deception copy rules and WCAG 2.2 AA accessibility verification.
 - **Milestone M1 (Video Preprocessing):**
   - PyAV decoding with presentation timestamping (PTS), sampling windows, and rotation normalization.
   - Multi-face tracking with greedy IoU matching and Savitzky-Golay landmark smoothing.
