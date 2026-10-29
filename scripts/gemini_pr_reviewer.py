@@ -4,10 +4,12 @@
 Reviews pull request diffs against SENTINEL-V SPEC and AGENTS.md rules using Google Gemini API.
 Runs in GitHub Actions with zero external Python dependencies.
 Idempotently updates existing review comments to avoid duplicates.
+Posts inline suggestions as interactive GitHub conversations on modified code lines.
 """
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -64,7 +66,7 @@ Review the following Pull Request diff thoroughly against our project specificat
 ---
 
 ### REQUIRED OUTPUT FORMAT:
-Produce a comprehensive, highly readable GitHub Markdown review following this exact structure:
+Produce a comprehensive, highly readable GitHub Markdown review following this structure:
 
 <!-- sentinel-v-pr-review -->
 ## 🤖 SENTINEL-V DeepForensics AI Review
@@ -97,7 +99,7 @@ Produce a comprehensive, highly readable GitHub Markdown review following this e
 (Group findings clearly by severity with exact file paths, line references, explanation, and code fixes):
 
 #### 🔴 [BLOCKING] Issues (Must resolve before merge)
-(List each blocking flaw with path and code suggestion. If none, state "None detected.")
+(List each blocking flaw with path and explanation. If none, state "None detected.")
 
 #### 🟡 [WARNING] Architectural & Code Quality Improvements
 (List improvements, edge cases, potential race conditions, or error handling gaps. If none, state "None detected.")
@@ -111,6 +113,25 @@ Produce a comprehensive, highly readable GitHub Markdown review following this e
 (List 2-4 concrete, prioritized bullet points for the author to address before merge)
 
 > ⚠️ **Mandatory Screening Aid Notice:** Screening aid — not proof. Human review required for consequential action.
+
+---
+
+### 5. Inline Actionable Suggestions (FOR CONVERSATIONS)
+At the very end of your response, output a single JSON code block tagged ````inline-suggestions```` containing specific code corrections for lines changed in the diff.
+ONLY target files and line numbers that were added or modified in the diff. Each suggestion MUST provide a working drop-in replacement line or block.
+
+```inline-suggestions
+[
+  {
+    "path": "path/to/modified_file.py",
+    "line": 42,
+    "severity": "CRITICAL",
+    "title": "Short descriptive title of the issue",
+    "comment": "Concise explanation of the problem and why this fix is needed.",
+    "suggestion": "replacement code here"
+  }
+]
+```
 """
 
 
@@ -165,6 +186,46 @@ def get_pr_diff(pr_number: str = None) -> str:
     return filtered_diff
 
 
+def get_pr_head_sha(pr_number: str) -> str:
+    """Get latest HEAD commit SHA for the pull request."""
+    # 1. Environment variable if available
+    sha = os.environ.get("PR_HEAD_SHA")
+    if sha:
+        return sha
+
+    # 2. GitHub CLI
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    cmd = ["gh", "pr", "view", str(pr_number), "--json", "headRefOid", "-q", ".headRefOid"]
+    if repo:
+        cmd.extend(["--repo", repo])
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
+        pass
+
+    # 3. Direct REST API
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token and repo:
+        try:
+            api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
+            req = urllib.request.Request(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                return data.get("head", {}).get("sha", "")
+        except Exception:
+            pass
+
+    return ""
+
+
 def call_gemini(prompt: str, api_key: str) -> str:
     """Call Google Gemini API with automatic model fallback and exponential backoff."""
     models = ["gemini-2.5-flash", "gemini-3.5-flash-lite"]
@@ -208,6 +269,26 @@ def call_gemini(prompt: str, api_key: str) -> str:
                 continue
 
     raise RuntimeError(f"All Gemini models failed. Last error: {last_err}")
+
+
+def extract_inline_suggestions(text: str):
+    """Extract inline suggestions JSON block from Gemini output and return (cleaned_text, suggestions)."""
+    pattern = r"```inline-suggestions\s*([\s\S]*?)\s*```"
+    match = re.search(pattern, text)
+    if not match:
+        return text.strip(), []
+
+    json_str = match.group(1).strip()
+    cleaned_text = re.sub(pattern, "", text).strip()
+
+    try:
+        suggestions = json.loads(json_str)
+        if isinstance(suggestions, list):
+            return cleaned_text, suggestions
+    except Exception as e:
+        print(f"Failed to parse inline-suggestions JSON: {e}")
+
+    return cleaned_text, []
 
 
 def post_or_update_github_comment(pr_number: str, comment_body: str) -> None:
@@ -307,6 +388,107 @@ def post_or_update_github_comment(pr_number: str, comment_body: str) -> None:
         subprocess.run(cmd, check=False)
 
 
+def post_inline_review_comments(pr_number: str, head_sha: str, suggestions: list) -> None:
+    """Post inline code suggestions as interactive PR conversations."""
+    if not suggestions or not head_sha:
+        return
+
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not token or not repo:
+        print("Note: GITHUB_TOKEN or GITHUB_REPOSITORY not set. Skipping inline comments.")
+        return
+
+    # 1. Fetch existing review comments on the PR to avoid duplicate threads
+    existing_coords = set()
+    try:
+        api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/comments?per_page=100"
+        req = urllib.request.Request(
+            api_url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            existing = json.loads(resp.read().decode("utf-8"))
+            for c in existing:
+                path = c.get("path")
+                line = c.get("line") or c.get("original_line")
+                if path and line:
+                    existing_coords.add((path, int(line)))
+    except Exception as e:
+        print(f"Note: Could not check existing inline comments ({e})")
+
+    # 2. Post new inline review comments
+    severity_emojis = {
+        "CRITICAL": "🔴",
+        "BLOCKING": "🔴",
+        "WARNING": "🟡",
+        "SUGGESTION": "💡",
+    }
+
+    posted_count = 0
+    for item in suggestions:
+        try:
+            path = item.get("path")
+            line = int(item.get("line", 0))
+            if not path or not line:
+                continue
+
+            # Don't post duplicate conversation on the exact same file and line
+            if (path, line) in existing_coords:
+                print(f"Skipping inline comment on {path}:{line} (already commented)")
+                continue
+
+            sev = item.get("severity", "WARNING").upper()
+            emoji = severity_emojis.get(sev, "🔍")
+            title = item.get("title", "Review Finding")
+            comment = item.get("comment", "")
+            suggestion = item.get("suggestion", "")
+
+            body_parts = [f"### {emoji} {title}\n", f"{comment}\n"]
+            if suggestion:
+                body_parts.append(f"```suggestion\n{suggestion}\n```")
+
+            comment_body = "\n".join(body_parts)
+
+            post_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/comments"
+            payload = {
+                "body": comment_body,
+                "commit_id": head_sha,
+                "path": path,
+                "line": line,
+                "side": "RIGHT",
+            }
+
+            req = urllib.request.Request(
+                post_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    print(f"Created inline conversation on {path}:{line} (Status {r.status})")
+                    existing_coords.add((path, line))
+                    posted_count += 1
+            except urllib.error.HTTPError as e:
+                err_resp = e.read().decode("utf-8", errors="replace")
+                print(f"Could not post inline comment on {path}:{line} (HTTP {e.code}): {err_resp[:180]}")
+            except Exception as e:
+                print(f"Error posting inline comment on {path}:{line}: {e}")
+        except Exception as e:
+            print(f"Skipping malformed suggestion item: {e}")
+
+    print(f"Successfully posted {posted_count} inline conversation suggestions.")
+
+
 def main():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -346,17 +528,23 @@ def main():
     print("Sending diff to Gemini API for deep forensics and code review...")
     review = call_gemini(prompt, api_key)
 
-    footer = (
-        "\n\n---\n*Automated review by SENTINEL-V Gemini Bot &bull; Powered by Google Gemini API*"
-    )
-    full_comment = review.strip() + footer
+    # Extract inline suggestions block
+    cleaned_review, suggestions = extract_inline_suggestions(review)
 
     if os.environ.get("DRY_RUN", "false").lower() in ("true", "1", "yes"):
         print("\n=== DRY RUN REVIEW OUTPUT ===")
-        print(full_comment)
+        print(cleaned_review)
+        print(f"\nExtracted {len(suggestions)} inline suggestions.")
         print("=== END DRY RUN ===")
     else:
-        post_or_update_github_comment(pr_number, full_comment)
+        # 1. Update/post the main summary review comment (without promo footer)
+        post_or_update_github_comment(pr_number, cleaned_review)
+
+        # 2. Post inline code suggestions as interactive conversations
+        if suggestions:
+            head_sha = get_pr_head_sha(pr_number)
+            print(f"Found {len(suggestions)} inline suggestions. Posting conversations on commit {head_sha[:8]}...")
+            post_inline_review_comments(pr_number, head_sha, suggestions)
 
 
 if __name__ == "__main__":

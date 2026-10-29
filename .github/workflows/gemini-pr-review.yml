@@ -56,6 +56,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_TITLE: ${{ github.event.pull_request.title || github.event.issue.title || 'Manual Workflow PR Review' }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login || github.event.issue.user.login || github.actor }}
           GITHUB_BASE_REF: ${{ github.base_ref || github.event.pull_request.base.ref || 'main' }}
