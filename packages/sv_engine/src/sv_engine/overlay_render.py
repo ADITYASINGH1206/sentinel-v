@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Any
 
@@ -7,6 +8,8 @@ import numpy as np
 from sv_core.hashing import sha256_file
 
 from sv_engine.evidence import EvidenceFrame, cap_resolution_720p, compute_evidence_root
+
+logger = logging.getLogger(__name__)
 
 MANDATORY_DISCLAIMER = "Screening aid — not proof. Human review required for consequential action."
 
@@ -130,6 +133,9 @@ def render_overlay_video(
     fourcc = _fourcc("avc1")
     writer = cv2.VideoWriter(output_path, fourcc, fps, (target_w, target_h))
     if not writer.isOpened():
+        logger.warning(
+            "Could not open VideoWriter with 'avc1' FourCC; falling back to 'mp4v' codec."
+        )
         fourcc = _fourcc("mp4v")
         writer = cv2.VideoWriter(output_path, fourcc, fps, (target_w, target_h))
 
