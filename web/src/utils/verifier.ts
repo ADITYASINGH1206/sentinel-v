@@ -1,4 +1,5 @@
 import { ed25519 } from '@noble/curves/ed25519.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 /**
  * RFC 8785 JSON Canonicalization Scheme (JCS)
@@ -56,10 +57,24 @@ export async function sha256Bytes(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(hashBuffer);
 }
 
-export async function computeFileSha256(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-  return bytesToHex(new Uint8Array(hashBuffer));
+/**
+ * Streamed SHA-256 of a file: reads 8 MiB chunks so large videos are never loaded into memory at once.
+ * WebCrypto has no incremental digest, so this uses @noble/hashes.
+ */
+export async function computeFileSha256(
+  file: Blob,
+  onProgress?: (fraction: number) => void,
+  chunkSize = 8 * 1024 * 1024
+): Promise<string> {
+  const CHUNK = chunkSize;
+  const hasher = sha256.create();
+  for (let offset = 0; offset < file.size; offset += CHUNK) {
+    const buf = new Uint8Array(await file.slice(offset, offset + CHUNK).arrayBuffer());
+    hasher.update(buf);
+    onProgress?.(Math.min(1, (offset + buf.length) / file.size));
+  }
+  if (file.size === 0) onProgress?.(1);
+  return bytesToHex(hasher.digest());
 }
 
 /**

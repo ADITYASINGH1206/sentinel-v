@@ -1,0 +1,5 @@
+{
+  "note": "Illustrative mean clip logit used only by the home-page animation. Scores shown are computed from st_calibration.json; this is not a real analysis.",
+  "u": 1.66,
+  "prior_prevalence": 0.01
+}

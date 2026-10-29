@@ -1,0 +1,7 @@
+{
+  "source": "models/bundle-2026-11-default/smsdt-st-b/calibration.json (Paper A, class-balanced Platt fit on the validation split)",
+  "model_id": "smsdt-st-b",
+  "a": 0.647,
+  "b": -0.5865,
+  "youden_tau_p_bal": 0.7507
+}

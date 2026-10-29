@@ -1,6 +1,8 @@
-# SENTINEL-V: Calibrated, Auditable Video Deepfake Screening
+# VeriFrame: Calibrated, Auditable Video Deepfake Screening
 
-SENTINEL-V is a video deepfake screening platform and reviewer console built on the S-MSDT detector family. It provides prevalence-calibrated probabilities, explainable patch-evidence heat-maps, and cryptographically signed detection receipts anchored on EVM blockchains.
+> Formerly **SENTINEL-V** (see `docs/DECISIONS.md`, ADR 007). Internal package names (`sv_*`), `SV_` settings and the `sv-receipt/1` format are unchanged.
+
+VeriFrame is a video deepfake screening platform and reviewer console built on the S-MSDT detector family. It provides prevalence-calibrated probabilities, explainable patch-evidence heat-maps, and cryptographically signed detection receipts anchored on EVM blockchains.
 
 ```
        ┌────────────────┐
@@ -36,7 +38,7 @@ SENTINEL-V is a video deepfake screening platform and reviewer console built on 
 ## Key Features
 
 1. **Prevalence-Calibrated Screening:** Probability estimation calibrated against real-world base rates ($\pi$) rather than arbitrary binary thresholds.
-2. **Two-Stage Cost Cascade:** Fast screening via S-MSDT-S ($T=1$), escalating uncertain or suspicious clips to S-MSDT-ST ($T=8$), reducing GPU load by up to 70%.
+2. **Two-Stage Cost Cascade:** Fast screening via S-MSDT-S ($T=1$), escalating uncertain or suspicious clips to S-MSDT-ST ($T=8$); the compute saving is measured in experiment E3 rather than assumed.
 3. **Forensic Evidence Maps:** Spatiotemporal patch heat-maps warped back to source video coordinates for frame-by-frame inspection in the Reviewer Console.
 4. **Verifiable Detection Receipts:** Cryptographic audit trail linking media SHA-256, model weights hash, calibration hash, and decision policy, anchored to an EVM testnet.
 5. **Non-Invasive SENTINEL Integration:** Additive compatibility layer for the SENTINEL Web3 content-verification platform.
@@ -101,9 +103,20 @@ make dev
 ```
 
 Visit the services:
-- **Reviewer Console:** [http://localhost:5173](http://localhost:5173)
+- **Home page and Reviewer Console:** [http://localhost:5173](http://localhost:5173) (console at `/app`, public verifier at `/verify`)
 - **API Gateway & Swagger Docs:** [http://localhost:8080/docs](http://localhost:8080/docs)
 - **MinIO Storage Console:** [http://localhost:9001](http://localhost:9001)
+
+### Web app only (no backend)
+
+```bash
+cd web
+npm ci
+npm run dev            # http://localhost:5173 — falls back to labelled DEMO DATA when the API is not running
+VITE_DATA_MODE=demo npm run dev   # force generated demo data everywhere
+```
+
+The console marks every generated item with a **DEMO DATA** badge. The synthetic demo video in `web/public/demo/` is produced by `web/scripts/make_demo_video.py` and contains no real person.
 
 ### Running Tests
 
@@ -119,7 +132,7 @@ make lint
 
 ## Parallel Development Streams
 
-SENTINEL-V is built concurrently across two parallel workstreams:
+VeriFrame is built concurrently across two parallel workstreams:
 
 - **Stream A — ML & Data Forensics:** Lead by [@sharadpolackalsunil](https://github.com/sharadpolackalsunil)
   - Video preprocessing, face tracking, and clip formation (M1)

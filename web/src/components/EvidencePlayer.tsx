@@ -1,16 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Flame,
-  Eye,
-  EyeOff,
-  Maximize2,
-  Volume2,
-  VolumeX,
-} from 'lucide-react';
+import { demoHeat, HEAT_ALPHA_FLOOR, magma } from '../utils/heat';
+import { Play, Pause, SkipBack, SkipForward, Flame, Eye, EyeOff, Maximize2, Volume2, VolumeX, FlaskConical, ImageOff } from 'lucide-react';
 
 export interface ClipScoreData {
   k: number;
@@ -27,10 +17,14 @@ export interface TrackData {
   p_bal: number;
   decisive: boolean;
   clips: ClipScoreData[];
+  /** Normalized face box (0–1) in video coordinates, when the API or demo data provides one. */
+  box?: { x: number; y: number; w: number; h: number };
 }
 
 interface EvidencePlayerProps {
   videoUrl?: string;
+  /** Optional alternative encodings, tried in order (e.g. WebM then MP4). */
+  videoSources?: Array<{ src: string; type: string }>;
   tracks?: TrackData[];
   selectedTrackIdx: number;
   onSelectTrack: (idx: number) => void;
@@ -39,10 +33,15 @@ interface EvidencePlayerProps {
   seekTime?: number;
   onOverlayToggled?: () => void;
   fps?: number;
+  /** Demo mode draws a synthetic patch grid, clearly labelled. Live mode never fakes evidence. */
+  demo?: boolean;
 }
+
+const GRID = 16;
 
 export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
   videoUrl,
+  videoSources,
   tracks = [],
   selectedTrackIdx,
   onSelectTrack,
@@ -50,18 +49,18 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
   seekTime,
   onOverlayToggled,
   fps = 30.0,
+  demo = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
-  const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
-  const [opacity, setOpacity] = useState<number>(0.65);
-  const [isMuted, setIsMuted] = useState<boolean>(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [overlayVisible, setOverlayVisible] = useState(true);
+  const [opacity, setOpacity] = useState(0.6);
+  const [isMuted, setIsMuted] = useState(true);
 
-  // Synchronize seekTime prop from parent (e.g. timeline click)
   useEffect(() => {
     if (seekTime !== undefined && videoRef.current) {
       videoRef.current.currentTime = seekTime;
@@ -71,112 +70,97 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
 
   const activeTrack = tracks.find((t) => t.track_idx === selectedTrackIdx) || tracks[0];
 
-  // Draw overlay canvas (bounding box & heatmap representation)
   const drawOverlay = useCallback(
-    (ctx: CanvasRenderingContext2D, width: number, height: number, time: number) => {
+    (ctx: CanvasRenderingContext2D, width: number, height: number, time: number, video: HTMLVideoElement) => {
       ctx.clearRect(0, 0, width, height);
+      if (!overlayVisible || !activeTrack?.box) return;
 
-      if (!overlayVisible) return;
+      // Map normalized video coordinates into the letterboxed content rect (object-contain).
+      const vw = video.videoWidth || 16;
+      const vh = video.videoHeight || 9;
+      const scale = Math.min(width / vw, height / vh);
+      const cw = vw * scale;
+      const ch = vh * scale;
+      const ox = (width - cw) / 2;
+      const oy = (height - ch) / 2;
+      const bx = ox + activeTrack.box.x * cw;
+      const by = oy + activeTrack.box.y * ch;
+      const bw = activeTrack.box.w * cw;
+      const bh = activeTrack.box.h * ch;
 
-      // TODO: Integrate actual bounding box, landmark, and heatmap data from M4 evidence API. Current implementation is simulated.
-      // Find current clip probability for selected track
-      const currentClip = activeTrack?.clips.find(
-        (c) => time >= c.start_s && time <= c.start_s + 8.0 / fps
-      );
-      const suspicion = currentClip ? currentClip.p : activeTrack ? activeTrack.p_bal : 0.5;
+      const clip = activeTrack.clips.find((c, i) => {
+        const next = activeTrack.clips[i + 1];
+        return time >= c.start_s && (!next || time < next.start_s);
+      });
+      const score = clip ? clip.p : activeTrack.p_bal;
 
-      // Draw bounding box placeholder around facial region (center region simulation)
-      const boxW = width * 0.35;
-      const boxH = height * 0.45;
-      const boxX = (width - boxW) / 2;
-      const boxY = (height - boxH) / 2.2;
-
-      ctx.save();
-      ctx.globalAlpha = opacity;
-
-      // Heatmap glow gradient inside face bounding box
-      const gradient = ctx.createRadialGradient(
-        boxX + boxW / 2,
-        boxY + boxH / 2,
-        boxW * 0.1,
-        boxX + boxW / 2,
-        boxY + boxH / 2,
-        boxW * 0.6
-      );
-
-      if (suspicion > 0.6) {
-        gradient.addColorStop(0, 'rgba(239, 68, 68, 0.85)'); // Red/Rose
-        gradient.addColorStop(0.6, 'rgba(249, 115, 22, 0.55)'); // Orange
-        gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
-      } else if (suspicion > 0.35) {
-        gradient.addColorStop(0, 'rgba(234, 179, 8, 0.75)'); // Amber/Yellow
-        gradient.addColorStop(0.7, 'rgba(245, 158, 11, 0.4)');
-        gradient.addColorStop(1, 'rgba(234, 179, 8, 0.0)');
-      } else {
-        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.6)'); // Emerald
-        gradient.addColorStop(0.8, 'rgba(5, 150, 105, 0.25)');
-        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+      if (demo) {
+        const cellW = bw / GRID;
+        const cellH = bh / GRID;
+        for (let gy = 0; gy < GRID; gy++) {
+          for (let gx = 0; gx < GRID; gx++) {
+            const v = demoHeat(gx, gy, activeTrack.track_idx) * score;
+            if (v < HEAT_ALPHA_FLOOR) continue; // alpha floor, as in the real evidence maps
+            const [r, g, b] = magma(v);
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(1, v) * opacity})`;
+            ctx.fillRect(bx + gx * cellW, by + gy * cellH, cellW + 0.5, cellH + 0.5);
+          }
+        }
       }
 
-      ctx.fillStyle = gradient;
-      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(44, 199, 192, 0.95)';
+      const r = 8;
+      // Corner ticks instead of a full rectangle: reads as a tracker, not a verdict.
+      const corners: Array<[number, number, number, number]> = [
+        [bx, by, 1, 1],
+        [bx + bw, by, -1, 1],
+        [bx, by + bh, 1, -1],
+        [bx + bw, by + bh, -1, -1],
+      ];
+      ctx.beginPath();
+      for (const [x, y, dx, dy] of corners) {
+        ctx.moveTo(x, y + dy * r * 2);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + dx * r * 2, y);
+      }
+      ctx.stroke();
 
-      // Track Bounding Box Stroke
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = suspicion > 0.6 ? '#ef4444' : suspicion > 0.35 ? '#f59e0b' : '#10b981';
-      ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-      // Track Label Pill
-      ctx.font = 'bold 12px monospace';
-      ctx.fillStyle = ctx.strokeStyle;
-      ctx.fillRect(boxX, boxY - 20, 110, 20);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(
-        `Track #${activeTrack ? activeTrack.track_idx : 0} (p=${suspicion.toFixed(2)})`,
-        boxX + 5,
-        boxY - 6
-      );
-
-      // Simulated data indicator until M4 evidence API is integrated
-      ctx.fillStyle = 'rgba(234, 179, 8, 0.85)';
-      ctx.fillRect(boxX + 115, boxY - 20, 75, 20);
-      ctx.font = 'bold 10px monospace';
-      ctx.fillStyle = '#000000';
-      ctx.fillText('SIMULATED', boxX + 120, boxY - 6);
-
-      ctx.restore();
+      const label = `Track #${activeTrack.track_idx} · clip ${score.toFixed(2)}`;
+      ctx.font = '600 11px "JetBrains Mono", monospace';
+      const tw = ctx.measureText(label).width + 12;
+      ctx.fillStyle = 'rgba(7, 11, 18, 0.78)';
+      ctx.fillRect(bx, by - 22, tw, 18);
+      ctx.fillStyle = '#E7EDF5';
+      ctx.fillText(label, bx + 6, by - 9);
     },
-    [overlayVisible, opacity, activeTrack, fps]
+    [overlayVisible, opacity, activeTrack, demo]
   );
 
-  // Sync canvas with video animation frames
   useEffect(() => {
-    let animId: number;
+    let animId = 0;
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-
     const render = () => {
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext?.('2d');
       if (ctx) {
-        if (canvas.width !== video.clientWidth || canvas.height !== video.clientHeight) {
-          canvas.width = video.clientWidth;
-          canvas.height = video.clientHeight;
+        const dpr = window.devicePixelRatio || 1;
+        const w = video.clientWidth;
+        const h = video.clientHeight;
+        if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+          canvas.width = Math.round(w * dpr);
+          canvas.height = Math.round(h * dpr);
         }
-        drawOverlay(ctx, canvas.width, canvas.height, video.currentTime);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawOverlay(ctx, w, h, video.currentTime, video);
       }
       animId = requestAnimationFrame(render);
     };
-
     animId = requestAnimationFrame(render);
-    return () => {
-      if (animId) {
-        cancelAnimationFrame(animId);
-      }
-    };
-  }, [drawOverlay, overlayVisible, opacity, selectedTrackIdx]);
+    return () => cancelAnimationFrame(animId);
+  }, [drawOverlay]);
 
-  // Video event handlers
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const t = videoRef.current.currentTime;
@@ -184,47 +168,38 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
     onTimeUpdate?.(t);
   };
 
-  const handleLoadedMetadata = () => {
-    if (!videoRef.current) return;
-    setDuration(videoRef.current.duration || 0);
-  };
-
   const togglePlayPause = useCallback(() => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      videoRef.current.play();
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      v.play()?.catch?.(() => undefined);
       setIsPlaying(true);
+    } else {
+      v.pause();
+      setIsPlaying(false);
     }
-  }, [isPlaying]);
+  }, []);
 
   const stepFrame = useCallback(
     (direction: -1 | 1) => {
-      if (!videoRef.current) return;
-      videoRef.current.pause();
+      const v = videoRef.current;
+      if (!v) return;
+      v.pause();
       setIsPlaying(false);
-      const newTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + direction * (1 / fps)));
-      videoRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
-      onTimeUpdate?.(newTime);
+      const t = Math.max(0, Math.min(duration, v.currentTime + direction * (1 / fps)));
+      v.currentTime = t;
+      setCurrentTime(t);
+      onTimeUpdate?.(t);
     },
     [duration, fps, onTimeUpdate]
   );
 
   const jumpToPeakClip = useCallback(() => {
     if (!activeTrack || activeTrack.clips.length === 0 || !videoRef.current) return;
-    // Find clip with maximum anomaly score p
-    let peakClip = activeTrack.clips[0];
-    for (const c of activeTrack.clips) {
-      if (c.p > peakClip.p) {
-        peakClip = c;
-      }
-    }
-    videoRef.current.currentTime = peakClip.start_s;
-    setCurrentTime(peakClip.start_s);
-    onTimeUpdate?.(peakClip.start_s);
+    const peak = activeTrack.clips.reduce((best, c) => (c.p > best.p ? c : best), activeTrack.clips[0]);
+    videoRef.current.currentTime = peak.start_s;
+    setCurrentTime(peak.start_s);
+    onTimeUpdate?.(peak.start_s);
   }, [activeTrack, onTimeUpdate]);
 
   const toggleOverlay = useCallback(() => {
@@ -233,18 +208,14 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
   }, [onOverlayToggled]);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = isMuted;
-    }
+    if (videoRef.current) videoRef.current.muted = isMuted;
   }, [isMuted]);
 
-  // Global review hotkeys listener when player is mounted
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing into an input/textarea
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea') return;
-
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.code === 'Space') {
         e.preventDefault();
         togglePlayPause();
@@ -262,50 +233,66 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
         toggleOverlay();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [togglePlayPause, stepFrame, jumpToPeakClip, toggleOverlay]);
 
+  const progress = duration ? (currentTime / duration) * 100 : 0;
+  const ctrl = 'grid h-8 w-8 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-text';
+
   return (
-    <div className="bg-surface border border-border rounded-lg overflow-hidden flex flex-col shadow-sm">
-      {/* Video & Canvas Container */}
-      <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden group">
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          className="w-full h-full object-contain"
-          playsInline
-          muted={isMuted}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onEnded={() => setIsPlaying(false)}
-        />
+    <div className="flex flex-col overflow-hidden rounded-md border border-border bg-surface shadow-1">
+      <div className="group relative flex aspect-video items-center justify-center overflow-hidden bg-[#05080d]">
+        {videoUrl || videoSources?.length ? (
+          <video
+            ref={videoRef}
+            src={videoSources?.length ? undefined : videoUrl}
+            className="h-full w-full object-contain"
+            playsInline
+            muted={isMuted}
+            preload="metadata"
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
+          >
+            {videoSources?.map((source) => <source key={source.src} src={source.src} type={source.type} />)}
+          </video>
+        ) : (
+          <>
+            <video ref={videoRef} className="hidden" />
+            <div className="flex flex-col items-center gap-2 text-sm text-[#93A1B5]">
+              <ImageOff className="h-6 w-6" aria-hidden />
+              Media playback is not available for this analysis.
+            </div>
+          </>
+        )}
+        <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
 
-        {/* Sync Overlay Canvas */}
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 pointer-events-none w-full h-full"
-        />
-
-        {/* Overlay Status Pill Top-Right */}
-        <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded text-xs text-white">
-          <Flame
-            className={`w-3.5 h-3.5 ${
-              overlayVisible ? 'text-amber-400' : 'text-gray-500'
-            }`}
-          />
-          <span className="font-mono">
-            {overlayVisible ? `Heatmap (${Math.round(opacity * 100)}%)` : 'Overlay Hidden'}
-          </span>
+        <div className="absolute left-3 top-3 flex items-center gap-2">
+          {demo ? (
+            <span className="inline-flex items-center gap-1 rounded bg-[#E9B949]/90 px-2 py-0.5 font-mono text-[10px] font-semibold text-[#1a1300]">
+              <FlaskConical className="h-3 w-3" aria-hidden /> DEMO EVIDENCE
+            </span>
+          ) : (
+            (videoUrl || videoSources?.length) && (
+              <span className="rounded bg-black/60 px-2 py-0.5 text-[10px] text-[#C9D2DE] backdrop-blur">
+                Evidence maps appear here when the API provides them
+              </span>
+            )
+          )}
         </div>
+        <div className="absolute right-3 top-3 flex items-center gap-2 rounded bg-black/60 px-2.5 py-1 text-xs text-white backdrop-blur">
+          <Flame className={`h-3.5 w-3.5 ${overlayVisible ? 'text-[#FC8961]' : 'text-gray-500'}`} aria-hidden />
+          <span className="font-mono">{overlayVisible ? 'Overlay on' : 'Overlay hidden'}</span>
+        </div>
+        <div className="absolute bottom-0 left-0 h-0.5 bg-accent transition-[width] duration-100" style={{ width: `${progress}%` }} />
       </div>
 
-      {/* Playback Controls & Toolbars */}
-      <div className="p-3 bg-surface border-t border-border flex flex-col gap-2">
-        {/* Scrubber Progress Bar */}
-        <div className="flex items-center gap-2 text-xs font-mono text-muted">
-          <span>{currentTime.toFixed(2)}s</span>
+      <div className="flex flex-col gap-2 border-t border-border p-3">
+        <div className="flex items-center gap-3 font-mono text-xs text-muted">
+          <span className="w-12 tabular-nums">{currentTime.toFixed(2)}s</span>
           <input
             type="range"
             min={0}
@@ -319,109 +306,76 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
               onTimeUpdate?.(val);
             }}
             aria-label="Video scrubber"
-            className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-accent"
+            className="range flex-1"
           />
-          <span>{duration.toFixed(2)}s</span>
+          <span className="w-12 text-right tabular-nums">{duration.toFixed(2)}s</span>
         </div>
 
-        {/* Main Control Actions */}
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => stepFrame(-1)}
-              title="Step Backward (Left Arrow)"
-              aria-label="Step backward 1 frame"
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
-            >
-              <SkipBack className="w-4 h-4" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <button onClick={() => stepFrame(-1)} title="Step backward (←)" aria-label="Step backward 1 frame" className={ctrl}>
+              <SkipBack className="h-4 w-4" />
             </button>
             <button
               onClick={togglePlayPause}
               title="Play/Pause (Space)"
               aria-label={isPlaying ? 'Pause video' : 'Play video'}
-              className="p-2 rounded-full bg-accent text-white hover:opacity-90 transition-opacity"
+              className="grid h-9 w-9 place-items-center rounded-full bg-accent text-accent-contrast shadow-1 transition-transform hover:scale-105 active:scale-95"
             >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
             </button>
-            <button
-              onClick={() => stepFrame(1)}
-              title="Step Forward (Right Arrow)"
-              aria-label="Step forward 1 frame"
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
-            >
-              <SkipForward className="w-4 h-4" />
+            <button onClick={() => stepFrame(1)} title="Step forward (→)" aria-label="Step forward 1 frame" className={ctrl}>
+              <SkipForward className="h-4 w-4" />
             </button>
             <button
               onClick={jumpToPeakClip}
-              title="Jump to Peak Suspicion (P)"
+              title="Jump to peak clip (P)"
               aria-label="Jump to peak suspicion clip"
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors border border-amber-200 dark:border-amber-800"
+              className="ml-1 inline-flex items-center gap-1 rounded-md border border-band-review/30 bg-band-review/10 px-2.5 py-1 text-xs font-medium text-band-review transition-colors hover:bg-band-review/15"
             >
-              <Flame className="w-3.5 h-3.5" />
-              <span>Peak Clip (P)</span>
+              <Flame className="h-3.5 w-3.5" /> Peak clip <span className="font-mono opacity-70">P</span>
             </button>
           </div>
 
-          {/* Track Selector Buttons */}
           {tracks.length > 1 && (
-            <div className="flex items-center gap-1 border-x border-border px-2">
-              <span className="text-xs text-muted font-medium">Track:</span>
+            <div className="flex items-center gap-1" role="group" aria-label="Face track">
+              <span className="mr-1 text-xs text-muted">Track</span>
               {tracks.map((t) => (
                 <button
                   key={t.track_idx}
                   onClick={() => onSelectTrack(t.track_idx)}
-                  className={`px-2 py-0.5 text-xs font-mono rounded transition-colors ${
-                    selectedTrackIdx === t.track_idx
-                      ? 'bg-accent text-white font-bold'
-                      : 'bg-surface hover:bg-gray-100 dark:hover:bg-gray-800 text-muted'
+                  aria-pressed={selectedTrackIdx === t.track_idx}
+                  className={`rounded-md px-2 py-0.5 font-mono text-xs transition-colors ${
+                    selectedTrackIdx === t.track_idx ? 'bg-accent text-accent-contrast' : 'text-muted hover:bg-surface-2'
                   }`}
                 >
-                  #{t.track_idx} {t.decisive && '★'}
+                  #{t.track_idx}
+                  {t.decisive && ' ★'}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Overlay & Audio Controls */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={toggleOverlay}
-                title="Toggle Heatmap Overlay (H)"
-                aria-label={overlayVisible ? 'Hide heatmap overlay' : 'Show heatmap overlay'}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
-              >
-                {overlayVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
-              </button>
-              <input
-                type="range"
-                min={0.1}
-                max={1.0}
-                step={0.05}
-                value={opacity}
-                onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                aria-label="Heatmap overlay opacity"
-                title={`Overlay Opacity: ${Math.round(opacity * 100)}%`}
-                className="w-16 h-1 bg-gray-200 dark:bg-gray-700 rounded appearance-none cursor-pointer accent-accent"
-              />
-            </div>
-
-            <button
-              onClick={() => setIsMuted(!isMuted)}
-              title={isMuted ? 'Unmute' : 'Mute'}
-              aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'}
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
-            >
-              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          <div className="flex items-center gap-2">
+            <button onClick={toggleOverlay} title="Toggle overlay (H)" aria-label={overlayVisible ? 'Hide heatmap overlay' : 'Show heatmap overlay'} className={ctrl}>
+              {overlayVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </button>
-
-            <button
-              onClick={() => videoRef.current?.requestFullscreen?.()}
-              title="Toggle Fullscreen"
-              aria-label="Toggle fullscreen"
-              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
-            >
-              <Maximize2 className="w-4 h-4" />
+            <input
+              type="range"
+              min={0.1}
+              max={1.0}
+              step={0.05}
+              value={opacity}
+              onChange={(e) => setOpacity(parseFloat(e.target.value))}
+              aria-label="Heatmap overlay opacity"
+              aria-valuetext={`${Math.round(opacity * 100)} percent`}
+              className="range w-20"
+            />
+            <button onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'} className={ctrl}>
+              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+            <button onClick={() => videoRef.current?.requestFullscreen?.()} aria-label="Toggle fullscreen" className={ctrl}>
+              <Maximize2 className="h-4 w-4" />
             </button>
           </div>
         </div>

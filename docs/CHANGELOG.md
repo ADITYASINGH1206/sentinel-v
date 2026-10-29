@@ -1,4 +1,4 @@
-# Changelog — SENTINEL-V
+# Changelog — VeriFrame (formerly SENTINEL-V)
 
 All notable changes to this project will be documented in this file.
 
@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Changed — web 1.1.0: VeriFrame rebrand and UI overhaul
+- Renamed the product to **VeriFrame** in all user-facing places (ADR 007).
+- New public home page (`/`) with an animated scan illustration, "how it works" pipeline, feature grid, base-rate calculator using the S-MSDT paper's operating points, verify teaser, research and known-limitations section, FAQ.
+- Console moved to `/app` with an animated, collapsible sidebar, breadcrumbs, theme toggle (system/light/dark, no flash), and page transitions; new Analyze (upload/URL with real upload progress), Cases (filters in the URL, CSV export), Review queue, Policies (presets + simulator via `POST /v1/policies/simulate`), and Settings (theme, motion, data source) pages.
+- Case and review pages read `GET /v1/analyses/{id}`; review submissions use the API contract (`authentic | manipulated | cannot_tell`, `reasons`, required `confidence`) and surface HTTP errors instead of reporting success.
+- Evidence player: real face-box geometry with letterboxing, labelled DEMO evidence grid only in demo mode, WebM + MP4 sources, frame stepping and peak-clip jump.
+- Public verifier restyled; a signature only passes when a public key verified it (embedded or from `/.well-known/sv-keys.json`); Merkle roots without a proof, chain anchors and registry entries are reported as skipped rather than passed; file hashing is streamed in 8 MiB chunks.
+- Removed the invented "Avg Triage Speed" metric and hard-coded case values.
+- Web image now serves the SPA from nginx on port 8080 with `/v1` proxying (compose maps `5173:8080`).
+- Tests: 26 vitest tests (copy rules over the rendered home page, brand guard, calibration maths, demo-data consistency, 422 handling, streamed hashing).
 
 ### Added
 - **Milestone M10 (Paper B Evaluation Harness & Publication Figures):**
