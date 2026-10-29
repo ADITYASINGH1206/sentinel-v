@@ -24,6 +24,9 @@ def apply_platt(u: float, a: float, b: float) -> float:
     return sigmoid(a * u + b)
 
 
+calibrate_platt = apply_platt
+
+
 def fit_platt(u_scores: np.ndarray, labels: np.ndarray) -> tuple[float, float]:
     """Fit class-balanced Platt scaling parameters (a, b) using logistic regression.
 

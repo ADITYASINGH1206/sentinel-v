@@ -1,8 +1,10 @@
+import os
+
 from celery import Celery
 from sv_core.settings import settings
 
 celery_app = Celery(
-    "sentinel_v_workers",
+    "sentinel_v",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
 )
@@ -14,7 +16,7 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_acks_late=True,
-    worker_prefetch_multiplier=1,
+    task_reject_on_worker_lost=True,
     task_routes={
         "sv_workers.tasks.ingest.*": {"queue": "ingest"},
         "sv_workers.tasks.preprocess.*": {"queue": "preprocess"},
@@ -24,3 +26,9 @@ celery_app.conf.update(
         "sv_workers.tasks.monitor.*": {"queue": "monitor"},
     },
 )
+
+if os.environ.get("SV_TESTING") == "1" or getattr(settings, "SV_TESTING", False):
+    celery_app.conf.update(
+        task_always_eager=True,
+        task_eager_propagates=True,
+    )

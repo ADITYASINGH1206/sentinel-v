@@ -14,9 +14,11 @@ dependencies = [
     "sv_fusion",
     "sv_receipts",
     "celery[redis]>=5.4.0",
-    "boto3>=1.34.0"
+    "boto3>=1.34.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "aiosqlite>=0.20.0",
+    "redis>=5.0.0"
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
