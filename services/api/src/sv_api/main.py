@@ -43,9 +43,9 @@ if HAS_PROMETHEUS:
     metrics_app = make_asgi_app()
     app.mount("/metrics", metrics_app)
 
-# Include Routers
-app.include_router(health.router)
-app.include_router(analyses.router)
-app.include_router(receipts.router)
-app.include_router(compat.router)
-app.include_router(review.router)
+# Include Routers with exact API prefixes
+app.include_router(health.router, tags=["Health"])
+app.include_router(analyses.router, prefix="/v1/analyses", tags=["Analyses"])
+app.include_router(receipts.router, prefix="/v1/receipts", tags=["Receipts"])
+app.include_router(review.router, prefix="/v1", tags=["Reviews"])
+app.include_router(compat.router, prefix="/compat", tags=["SENTINEL Compatibility"])
