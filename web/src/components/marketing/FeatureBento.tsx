@@ -10,7 +10,7 @@ const HERO_P = platt(hero.u);
 const HERO_PRIOR = priorCorrect(HERO_P, hero.prior_prevalence);
 
 const MiniGrid: React.FC = () => (
-  <div className="grid w-full max-w-[168px] grid-cols-8 gap-0.5 rounded-sm bg-[#070B12] p-2" aria-hidden>
+  <div className="grid w-full max-w-[168px] grid-cols-8 gap-0.5 rounded-sm bg-[#14110E] p-2" aria-hidden>
     {Array.from({ length: 64 }, (_, i) => {
       const gx = (i % 8) * 2;
       const gy = Math.floor(i / 8) * 2;
@@ -19,7 +19,7 @@ const MiniGrid: React.FC = () => (
         <span
           key={i}
           className="aspect-square rounded-[2px] transition-[transform,opacity] duration-300 group-hover:scale-105"
-          style={{ background: v >= HEAT_ALPHA_FLOOR ? magmaCss(v) : '#111a29', transitionDelay: `${(gy / 2) * 30}ms` }}
+          style={{ background: v >= HEAT_ALPHA_FLOOR ? magmaCss(v) : '#26201A', transitionDelay: `${(gy / 2) * 30}ms` }}
         />
       );
     })}

@@ -19,16 +19,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-accent text-accent-contrast shadow-1 hover:bg-accent/90 hover:shadow-2',
+        primary: 'bg-text text-bg shadow-1 hover:bg-text/85 hover:shadow-2',
+        accent: 'bg-accent text-accent-contrast shadow-1 hover:bg-accent/90 hover:shadow-2',
         secondary: 'border border-border bg-surface text-text shadow-1 hover:border-accent/40 hover:bg-surface-2',
         ghost: 'text-muted hover:bg-surface-2 hover:text-text',
         danger: 'bg-band-manipulated text-white hover:bg-band-manipulated/90',
       },
       size: {
-        sm: 'h-8 rounded-sm px-3 text-xs',
-        md: 'h-9 rounded-md px-4 text-sm',
-        lg: 'h-11 rounded-md px-5 text-sm',
-        icon: 'h-9 w-9 rounded-md',
+        sm: 'h-8 rounded-full px-3.5 text-xs',
+        md: 'h-9 rounded-full px-4 text-sm',
+        lg: 'h-12 rounded-full px-6 text-sm',
+        icon: 'h-9 w-9 rounded-full',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },
@@ -301,7 +302,7 @@ export const SectionHeading: React.FC<{ eyebrow?: string; title: React.ReactNode
 }) => (
   <Reveal className={cn('max-w-2xl', center && 'mx-auto text-center')}>
     {eyebrow && <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">{eyebrow}</p>}
-    <h2 id={id} className="text-3xl font-semibold tracking-tight text-text sm:text-4xl">
+    <h2 id={id} className="text-4xl text-text sm:text-5xl">
       {title}
     </h2>
     {body && <p className="mt-4 text-base leading-relaxed text-muted">{body}</p>}

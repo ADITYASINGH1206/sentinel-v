@@ -8,8 +8,8 @@ export const LogoMark: React.FC<{ className?: string; title?: string }> = ({ cla
     {title && <title>{title}</title>}
     <defs>
       <linearGradient id="vf-logo-g" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="rgb(44 199 192)" />
-        <stop offset="1" stopColor="rgb(109 91 208)" />
+        <stop offset="0" stopColor="rgb(242 153 79)" />
+        <stop offset="1" stopColor="rgb(79 86 190)" />
       </linearGradient>
     </defs>
     <rect x="4" y="4" width="56" height="56" rx="14" fill="rgb(7 11 18)" />

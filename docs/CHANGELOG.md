@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Public verifier restyled; a signature only passes when a public key verified it (embedded or from `/.well-known/sv-keys.json`); Merkle roots without a proof, chain anchors and registry entries are reported as skipped rather than passed; file hashing is streamed in 8 MiB chunks.
 - Removed the invented "Avg Triage Speed" metric and hard-coded case values.
 - Web image now serves the SPA from nginx on port 8080 with `/v1` proxying (compose maps `5173:8080`).
+- Visual refresh: warm paper/ink palette with a burnt-orange accent, Fraunces serif display headings, pill buttons (ink primary), sunset-gradient wash behind the hero, hero illustration recoloured. Contrast re-measured in `docs/design/tokens.md`.
 - Tests: 26 vitest tests (copy rules over the rendered home page, brand guard, calibration maths, demo-data consistency, 422 handling, streamed hashing).
 
 ### Added

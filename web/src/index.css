@@ -7,42 +7,42 @@
  * Colors are stored as RGB channels so Tailwind opacity modifiers work (bg-accent/10).
  */
 :root {
-  --bg: 247 249 251;
-  --surface: 255 255 255;
-  --surface-2: 241 244 248;
-  --border: 227 232 239;
-  --text: 11 18 32;
-  --muted: 86 97 115;
-  --accent: 11 122 133;
-  --accent-contrast: 255 255 255;
-  --accent-soft: 226 244 245;
-  --violet: 109 91 208;
-  --band-authentic: 33 116 74;
-  --band-review: 143 95 0;
-  --band-manipulated: 180 35 24;
-  --band-inconclusive: 86 97 115;
-  --shadow-1: 0 1px 2px rgb(11 18 32 / 0.06), 0 1px 1px rgb(11 18 32 / 0.04);
-  --shadow-2: 0 8px 24px rgb(11 18 32 / 0.08);
+  --bg: 244 239 230;
+  --surface: 255 251 244;
+  --surface-2: 235 228 214;
+  --border: 216 207 190;
+  --text: 22 19 15;
+  --muted: 99 90 78;
+  --accent: 166 64 14;
+  --accent-contrast: 255 251 244;
+  --accent-soft: 248 226 206;
+  --violet: 79 86 190;
+  --band-authentic: 30 104 68;
+  --band-review: 138 90 0;
+  --band-manipulated: 178 34 30;
+  --band-inconclusive: 99 90 78;
+  --shadow-1: 0 1px 2px rgb(60 40 20 / 0.08), 0 1px 1px rgb(60 40 20 / 0.05);
+  --shadow-2: 0 12px 32px rgb(60 40 20 / 0.12);
   color-scheme: light;
 }
 
 .dark {
-  --bg: 7 11 18;
-  --surface: 13 20 31;
-  --surface-2: 18 27 41;
-  --border: 30 42 59;
-  --text: 231 237 245;
-  --muted: 147 161 181;
-  --accent: 44 199 192;
-  --accent-contrast: 4 33 31;
-  --accent-soft: 14 42 45;
-  --violet: 155 140 255;
-  --band-authentic: 92 201 146;
-  --band-review: 233 185 73;
-  --band-manipulated: 255 122 110;
-  --band-inconclusive: 147 161 181;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-2: 0 8px 24px rgb(0 0 0 / 0.45);
+  --bg: 20 17 14;
+  --surface: 30 26 22;
+  --surface-2: 40 35 29;
+  --border: 62 54 46;
+  --text: 244 239 230;
+  --muted: 178 168 152;
+  --accent: 242 153 79;
+  --accent-contrast: 32 16 4;
+  --accent-soft: 56 36 22;
+  --violet: 165 172 255;
+  --band-authentic: 104 205 150;
+  --band-review: 236 190 80;
+  --band-manipulated: 255 125 112;
+  --band-inconclusive: 178 168 152;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.45);
+  --shadow-2: 0 12px 32px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
@@ -58,6 +58,14 @@
     @apply bg-bg text-text font-sans antialiased;
     margin: 0;
     font-feature-settings: 'cv11', 'ss01';
+  }
+  h1,
+  h2,
+  .font-display {
+    font-family: 'Fraunces Variable', Fraunces, 'Iowan Old Style', Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    font-variation-settings: 'opsz' 96;
   }
   ::selection {
     background: rgb(var(--accent) / 0.25);
@@ -93,6 +101,18 @@
       linear-gradient(90deg, rgb(var(--border) / 0.6) 1px, transparent 1px);
     background-size: 48px 48px;
     mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 70%);
+  }
+  /* Sarvam-style sunset wash behind the hero (light: warm orange + periwinkle; dark: faint glow). */
+  .hero-wash {
+    background:
+      radial-gradient(60% 55% at 50% -5%, rgb(var(--accent) / 0.28), transparent 70%),
+      radial-gradient(45% 45% at 12% 30%, rgb(var(--violet) / 0.16), transparent 70%),
+      radial-gradient(40% 40% at 90% 20%, rgb(var(--violet) / 0.12), transparent 70%);
+  }
+  .dark .hero-wash {
+    background:
+      radial-gradient(60% 55% at 50% -5%, rgb(var(--accent) / 0.18), transparent 70%),
+      radial-gradient(45% 45% at 12% 30%, rgb(var(--violet) / 0.1), transparent 70%);
   }
   .text-gradient {
     background: linear-gradient(100deg, rgb(var(--accent)) 10%, rgb(var(--violet)) 90%);

@@ -31,8 +31,9 @@ const Home: React.FC = () => {
   return (
     <>
       <section aria-labelledby="hero-title" className="relative -mt-16 overflow-hidden pb-24 pt-32 sm:pt-36">
-        <div className="grid-bg absolute inset-0 -z-10 opacity-70" aria-hidden />
-        <div className="absolute -top-40 left-1/2 -z-10 h-[520px] w-[900px] -translate-x-1/2 animate-drift rounded-full bg-[radial-gradient(closest-side,rgb(var(--accent)/0.18),transparent)] blur-2xl" aria-hidden />
+        <div className="hero-wash absolute inset-0 -z-10" aria-hidden />
+        <div className="grid-bg absolute inset-0 -z-10 opacity-30" aria-hidden />
+        <div className="absolute -top-48 left-1/2 -z-10 h-[460px] w-[820px] -translate-x-1/2 animate-drift rounded-full bg-[radial-gradient(closest-side,rgb(var(--accent)/0.22),transparent)] blur-3xl" aria-hidden />
         <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 sm:px-6 lg:grid-cols-[1.05fr_1fr]">
           <m.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}>
             <m.p variants={heroItem} className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/80 px-3 py-1 text-xs font-medium text-muted backdrop-blur">
@@ -42,8 +43,8 @@ const Home: React.FC = () => {
               </span>
               Video deepfake screening · research preview
             </m.p>
-            <m.h1 variants={heroItem} id="hero-title" className="mt-6 text-4xl font-semibold leading-[1.08] tracking-[-0.02em] text-text sm:text-5xl lg:text-[56px]">
-              See where a video may have been altered — <span className="text-gradient">and how sure we really are.</span>
+            <m.h1 variants={heroItem} id="hero-title" className="mt-6 text-5xl leading-[1.04] text-text sm:text-6xl lg:text-[68px]">
+              See where a video may have been altered — <span className="italic text-accent">and how sure we really are.</span>
             </m.h1>
             <m.p variants={heroItem} className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
               {BRAND.name} screens faces in video with the {BRAND.detectorFamily} detector family. It returns a calibrated score, an evidence map, a
