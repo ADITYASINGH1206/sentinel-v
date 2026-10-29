@@ -136,9 +136,10 @@ def get_pr_diff(pr_number: str = None) -> str:
 
 
 def call_gemini(prompt: str, api_key: str) -> str:
-    """Call Google Gemini API using native urllib."""
-    # Prefer gemini-2.5-flash, fallback to gemini-2.5-flash-lite or gemini-flash-latest
-    models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+    """Call Google Gemini API using native urllib with retries and fallback."""
+    import time
+
+    models = ["gemini-2.5-flash", "gemini-3.5-flash-lite"]
     last_err = None
 
     for model in models:
@@ -148,25 +149,30 @@ def call_gemini(prompt: str, api_key: str) -> str:
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048},
         }
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url, data=data, headers={"Content-Type": "application/json"}, method="POST"
-        )
 
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                resp_data = json.loads(resp.read().decode("utf-8"))
-                candidates = resp_data.get("candidates", [])
-                if candidates:
-                    return candidates[0]["content"]["parts"][0]["text"]
-        except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8")
-            print(f"Gemini API model {model} HTTP error {e.code}: {err_body}")
-            last_err = e
-            continue
-        except Exception as e:
-            print(f"Gemini API model {model} error: {e}")
-            last_err = e
-            continue
+        for attempt in range(1, 4):
+            req = urllib.request.Request(
+                url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    resp_data = json.loads(resp.read().decode("utf-8"))
+                    candidates = resp_data.get("candidates", [])
+                    if candidates:
+                        return candidates[0]["content"]["parts"][0]["text"]
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="replace")
+                print(f"Gemini API model {model} attempt {attempt} HTTP error {e.code}: {err_body[:200]}")
+                last_err = e
+                if e.code in (429, 503):
+                    time.sleep(attempt * 2)
+                    continue
+                break  # Don't retry client errors like 400 or 404
+            except Exception as e:
+                print(f"Gemini API model {model} attempt {attempt} error: {e}")
+                last_err = e
+                time.sleep(attempt * 2)
+                continue
 
     raise RuntimeError(f"All Gemini models failed. Last error: {last_err}")
 
