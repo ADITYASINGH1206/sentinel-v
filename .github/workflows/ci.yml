@@ -26,12 +26,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
           pip install ruff mypy pytest hypothesis httpx
           pip install -e packages/sv_core
           pip install -e packages/sv_engine
           pip install -e packages/sv_fusion
           pip install -e packages/sv_receipts
           pip install -e services/api
+          pip install -e services/workers
 
       - name: Run Ruff Lint & Format Check
         run: |
@@ -49,4 +51,3 @@ jobs:
       - name: Check No Hardcoded Metric Literals
         run: |
           python3 tools/check_no_metric_literals.py web/src services/
-
