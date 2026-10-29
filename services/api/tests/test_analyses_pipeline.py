@@ -25,6 +25,11 @@ from sv_api.main import app
 from sv_api.models import AuditLog
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 @pytest.fixture(autouse=True)
 def setup_test_env():
     """Configure environment for SQLite and reset tables before each test."""
