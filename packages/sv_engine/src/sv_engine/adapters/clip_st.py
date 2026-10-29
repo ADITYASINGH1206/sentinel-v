@@ -70,7 +70,7 @@ class ClipSTAdapter:
                 config = CLIPVisionConfig.from_json_file(cfg_path)
 
         encoder = CLIPFrameEncoder(tune="layernorm", grad_ckpt=False, config=config)
-        self.model = SMSDTv2(encoder=encoder, grid=self.grid, max_frames=16)
+        self.model = SMSDTv2(encoder=encoder, grid=self.grid, max_frames=self.T)
 
         weights = load_weights_dict(bundle_dir, device=self.device)
         load_state_dict_strict(self.model, weights)

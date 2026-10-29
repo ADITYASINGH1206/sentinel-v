@@ -52,7 +52,7 @@ class CnnP1Adapter:
         ):
             verify_bundle_checksums(bundle_dir)
 
-        self.model = SMSDT(grid=self.grid, embed_dim=256, max_frames=16, use_dense_psit=True)
+        self.model = SMSDT(grid=self.grid, embed_dim=256, max_frames=self.T, use_dense_psit=True)
 
         weights = load_weights_dict(bundle_dir, device=self.device)
         load_state_dict_strict(self.model, weights)
