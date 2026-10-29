@@ -404,6 +404,15 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
+
+            <button
+              onClick={() => videoRef.current?.requestFullscreen?.()}
+              title="Toggle Fullscreen"
+              aria-label="Toggle fullscreen"
+              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
