@@ -95,6 +95,11 @@ def test_geometric_back_projection_roundtrip():
     dist = float(np.linalg.norm(orig_pt - pt_recovered))
     assert dist < 0.001
 
+    # Singular matrix raises ValueError
+    M_singular = np.array([[0.0, 0.0, 10.0], [0.0, 0.0, 10.0]], dtype=np.float32)
+    with pytest.raises(ValueError, match="nearly singular"):
+        invert_affine_matrix(M_singular)
+
 
 def test_cap_resolution_720p():
     # 1. 1080p video (1920x1080) -> capped to 720p

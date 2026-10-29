@@ -20,13 +20,15 @@ def invert_affine_matrix(M: np.ndarray) -> np.ndarray:
     if M.shape == (2, 3):
         M_homo = np.eye(3, dtype=np.float32)
         M_homo[:2, :] = M
-        M_inv = np.linalg.inv(M_homo)
-        return M_inv[:2, :]
     elif M.shape == (3, 3):
-        M_inv = np.linalg.inv(M)
-        return M_inv[:2, :]
+        M_homo = M.astype(np.float32)
     else:
         raise ValueError(f"Expected affine matrix with shape (2, 3) or (3, 3), got {M.shape}")
+
+    if np.linalg.cond(M_homo) > 1e12:
+        raise ValueError("Affine matrix is nearly singular and cannot be safely inverted.")
+    M_inv = np.linalg.inv(M_homo)
+    return M_inv[:2, :]
 
 
 def warp_heatmap_to_source_frame(
