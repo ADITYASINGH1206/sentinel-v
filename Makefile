@@ -49,6 +49,7 @@ eval-%:
 
 eval-all:
 	python3 eval/scripts/run_all.py
+	python3 eval/figs/render_all.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

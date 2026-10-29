@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Milestone M10 (Paper B Evaluation Harness & Publication Figures):**
+  - Standardized JSONL evaluation manifests for FaceForensics++ c23, DeepfakeDetection, and Celeb-DF v2 (eval/manifests/).
+  - High-throughput batch score dumping tool 	ools/dump_scores.py for evaluating video datasets.
+  - End-to-end evaluation harness implementing Paper B experiments E1 through E12 in eval/scripts/experiments/ (E1 Serving Parity, E2 Base Rates & Prevalence Sweeps, E3 Cascade Pareto Frontier, E4 In-the-Wild Perturbation Chains, E5 Latency/Cost/VRAM, E6 Calibration Transfer under Sample Budgets, E7 Serving Ablations, E8 Fusion & Generative Diffusion Gap, E9 Heatmap Explanation Faithfulness, E11 Longitudinal Drift & Recalibration, E12 Detection Receipt & Cryptographic Overhead).
+  - Single experiment runner CLI eval/scripts/run_experiment.py --id <e1..e12> and all-experiment orchestrator eval/scripts/run_all.py.
+  - Publication-grade vector figure generators in eval/figs/ producing vector PDF and SVG graphics (ig_roc, ig_cascade_pareto, ig_drift_timeline, ig_base_rates, ig_robustness_radar) directly from evaluation CSVs with mandatory screening-aid disclaimers.
+  - Comprehensive automated test suite eval/tests/test_eval_harness.py verifying manifests, score dumping, experiment runners, and vector figure generators.
 - **Milestone M11 (Security Hardening, SSRF Sandboxing, Fuzzing & Release Package):**
   - SSRF protection module `services/api/src/sv_api/security.py` with DNS pre-resolution, private/loopback/link-local/cloud-metadata IP filtering, and 3-hop redirect bounding.
   - Hardened streaming downloader `safe_download_file` with 500 MB size limit and connect/total timeouts.

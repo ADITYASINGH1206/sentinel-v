@@ -60,6 +60,9 @@ models/aux/**/*.onnx
 # Evaluation datasets
 eval/data/
 eval/results/*.csv
+eval/results/*.pdf
+eval/results/*.svg
+!eval/results/.gitkeep
 
 # Secrets & Environment
 .env
