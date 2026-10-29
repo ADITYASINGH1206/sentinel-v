@@ -151,8 +151,8 @@ def evaluate_cascade(
     """Evaluate two-stage cascade across multiple face tracks."""
     if not track_batches:
         return CascadeResult(
-            video_u=0.0,
-            video_p_bal=0.5,
+            video_u=float("nan"),
+            video_p_bal=float("nan"),
             decisive_track_idx=-1,
             exited_early=False,
             decision_band="inconclusive",
@@ -206,8 +206,8 @@ def evaluate_cascade(
                 )
             )
 
-    # Decisive track is the one with max final_u
-    decisive_idx = int(np.argmax([r.final_u for r in track_results]))
+    # Decisive track is the one with max calibrated probability final_p_bal (SPEC §7)
+    decisive_idx = int(np.argmax([r.final_p_bal for r in track_results]))
     track_results[decisive_idx].decisive = True
 
     decisive_res = track_results[decisive_idx]

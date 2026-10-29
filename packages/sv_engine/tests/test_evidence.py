@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 
@@ -259,5 +260,16 @@ def test_generate_track_evidence_and_render_artifacts_e2e():
         assert "manifest.json" in manifest
         assert "overlay_track_0.mp4" in manifest
         assert len(evidence_root) == 64
-        assert os.path.exists(os.path.join(tmpdir, "manifest.json"))
+        manifest_file_path = os.path.join(tmpdir, "manifest.json")
+        assert os.path.exists(manifest_file_path)
         assert os.path.exists(os.path.join(tmpdir, "overlay_track_0.mp4"))
+
+        # 3. Verify manifest.json contains track and frame metadata
+        with open(manifest_file_path, encoding="utf-8") as f:
+            manifest_json = json.load(f)
+        assert manifest_json["track_idx"] == 0
+        assert manifest_json["p_score"] == 0.45
+        assert manifest_json["decision_band"] == "needs_review"
+        assert "artifacts" in manifest_json
+        assert len(manifest_json["frames"]) == 8
+        assert manifest_json["frames"][0]["orig_frame_idx"] == 0

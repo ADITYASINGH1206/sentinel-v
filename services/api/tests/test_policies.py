@@ -155,3 +155,37 @@ def test_reject_nonpositive_policy_version(client):
     }
     resp = client.post("/v1/policies", json=payload)
     assert resp.status_code == 422
+
+
+def test_reject_long_policy_fields(client):
+    """POST /v1/policies with policy_id or name > 64 chars returns 422."""
+    payload = {
+        "policy_id": "a" * 65,
+        "version": 1,
+        "name": "Standard Policy",
+        "target_prevalence": 0.01,
+        "stage1_variant": "smsdt-s-a",
+        "stage2_variant": "smsdt-st-b",
+    }
+    resp = client.post("/v1/policies", json=payload)
+    assert resp.status_code == 422
+
+    payload2 = {
+        "policy_id": "valid-id",
+        "version": 1,
+        "name": "b" * 65,
+        "target_prevalence": 0.01,
+        "stage1_variant": "smsdt-s-a",
+        "stage2_variant": "smsdt-st-b",
+    }
+    resp2 = client.post("/v1/policies", json=payload2)
+    assert resp2.status_code == 422
+
+
+def test_simulate_invalid_variant_returns_422(client):
+    """POST /v1/policies/simulate with unsupported variant returns 422."""
+    resp = client.post(
+        "/v1/policies/simulate",
+        json={"variant": "invalid-unsupported-variant"},
+    )
+    assert resp.status_code == 422

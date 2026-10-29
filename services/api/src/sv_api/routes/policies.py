@@ -40,9 +40,9 @@ class ThresholdsSchema(BaseModel):
 
 
 class PolicySchema(BaseModel):
-    policy_id: str
+    policy_id: str = Field(..., max_length=64)
     version: int = Field(1, ge=1)
-    name: str
+    name: str = Field(..., max_length=64)
     description: str = ""
     target_prevalence: float = Field(0.01, gt=0.0, lt=1.0)
     stage1_variant: str = "smsdt-s-a"
@@ -176,36 +176,42 @@ async def create_or_update_policy(
 @router.post("/simulate", response_model=dict[str, Any])
 async def run_policy_simulation(req: SimulateRequest):
     """Run prevalence-aware policy simulation (SPEC §7.4)."""
-    if req.variant:
-        target_fpr = req.fpr if req.fpr is not None else 0.01
-        sim = simulate_model_preset(
-            variant=req.variant,
-            target_fpr=target_fpr,
-            prevalence=req.prevalence,
-            volume_per_day=req.volume_per_day,
-        )
-        if req.sweep:
-            sim["prevalence_sweep"] = sweep_prevalence_curve(
-                tpr=sim["tpr"],
-                fpr=sim["fpr"],
+    try:
+        if req.variant:
+            target_fpr = req.fpr if req.fpr is not None else 0.01
+            sim = simulate_model_preset(
+                variant=req.variant,
+                target_fpr=target_fpr,
+                prevalence=req.prevalence,
                 volume_per_day=req.volume_per_day,
             )
-        return sim
+            if req.sweep:
+                sim["prevalence_sweep"] = sweep_prevalence_curve(
+                    tpr=sim["tpr"],
+                    fpr=sim["fpr"],
+                    volume_per_day=req.volume_per_day,
+                )
+            return sim
 
-    if req.tpr is not None and req.fpr is not None:
-        sim = simulate_policy(
-            tpr=req.tpr,
-            fpr=req.fpr,
-            prevalence=req.prevalence,
-            volume_per_day=req.volume_per_day,
-        )
-        if req.sweep:
-            sim["prevalence_sweep"] = sweep_prevalence_curve(
+        if req.tpr is not None and req.fpr is not None:
+            sim = simulate_policy(
                 tpr=req.tpr,
                 fpr=req.fpr,
+                prevalence=req.prevalence,
                 volume_per_day=req.volume_per_day,
             )
-        return sim
+            if req.sweep:
+                sim["prevalence_sweep"] = sweep_prevalence_curve(
+                    tpr=req.tpr,
+                    fpr=req.fpr,
+                    volume_per_day=req.volume_per_day,
+                )
+            return sim
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(err),
+        )
 
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,

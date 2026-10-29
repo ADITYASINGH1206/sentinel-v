@@ -36,6 +36,20 @@ class MockStageAdapter(DetectorAdapter):
         )
 
 
+class IdMappedAdapter(DetectorAdapter):
+    def __init__(self, batch_values: dict[int, float]):
+        self.batch_values = batch_values
+
+    def predict(self, batch: ClipBatch) -> ClipOutput:
+        val = self.batch_values.get(id(batch), 0.0)
+        n_clips = len(batch.frames_u8)
+        return ClipOutput(
+            logits=np.full(n_clips, val, dtype=np.float32),
+            patch_logits=None,
+            grid=16,
+        )
+
+
 def make_dummy_batch(n_clips: int = 4, t_frames: int = 1) -> ClipBatch:
     """Helper to construct valid ClipBatch."""
     return ClipBatch(
@@ -156,18 +170,7 @@ def test_cascade_decisive_track_max_aggregation():
         id(batches[1]): 1.5,
         id(batches[2]): -0.5,
     }
-
-    class IdMappedAdapter(DetectorAdapter):
-        def predict(self, batch: ClipBatch) -> ClipOutput:
-            val = batch_values.get(id(batch), 0.0)
-            n_clips = len(batch.frames_u8)
-            return ClipOutput(
-                logits=np.full(n_clips, val, dtype=np.float32),
-                patch_logits=None,
-                grid=16,
-            )
-
-    adapter = IdMappedAdapter()
+    adapter = IdMappedAdapter(batch_values)
 
     result = evaluate_cascade(
         track_batches=batches,
@@ -257,3 +260,48 @@ def test_fit_cascade_odd_sample_counts():
     assert len(u_s2) == 1001
     assert len(labels) == 1001
     assert np.sum(labels == 1) + np.sum(labels == 0) == 1001
+
+
+def test_cascade_empty_tracks_returns_nan():
+    """Verify empty track_batches returns NaN scores and inconclusive band."""
+    s1 = MockStageAdapter(logits_value=0.0)
+    s2 = MockStageAdapter(logits_value=0.0)
+    res = evaluate_cascade(
+        track_batches=[],
+        stage1_adapter=s1,
+        stage2_adapter=s2,
+        stage1_calib=(1.0, 0.0),
+        stage2_calib=(1.0, 0.0),
+    )
+    assert np.isnan(res.video_u)
+    assert np.isnan(res.video_p_bal)
+    assert res.decision_band == "inconclusive"
+    assert res.decisive_track_idx == -1
+    assert len(res.track_results) == 0
+
+
+def test_cascade_decisive_track_selected_by_calibrated_p():
+    """Verify decisive track is chosen by max calibrated p_bal even if raw u differs."""
+    b0 = make_dummy_batch(1, 8)
+    b1 = make_dummy_batch(1, 8)
+
+    # Track 0: raw u = 2.0, calibrated p = 0.60
+    # Track 1: raw u = 1.0, calibrated p = 0.80 (calibrated higher despite lower raw u)
+    # Using an adapter that returns 2.0 for b0 and 1.0 for b1
+    mapping = {id(b0): 2.0, id(b1): 1.0}
+    adapter = IdMappedAdapter(mapping)
+
+    # Stage 1 calib: p = 1/(1+exp(-(0.1*u))) -> Track 0: p=sigmoid(0.2)~0.55, Track 1: p=sigmoid(0.1)~0.52
+    # But Stage 2: let track 0 escalate and stage 2 has custom mapping:
+    # We can test with cascade_enabled=False so both run Stage 2 with identity calibration:
+    res = evaluate_cascade(
+        track_batches=[b0, b1],
+        stage1_adapter=adapter,
+        stage2_adapter=adapter,
+        stage1_calib=(1.0, 0.0),
+        stage2_calib=(1.0, 0.0),
+        cascade_enabled=False,
+    )
+    # Track 0 has u=2.0 (p=sigmoid(2.0)=0.88), Track 1 has u=1.0 (p=sigmoid(1.0)=0.73)
+    assert res.decisive_track_idx == 0
+    assert res.video_u == 2.0

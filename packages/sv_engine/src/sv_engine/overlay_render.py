@@ -228,10 +228,26 @@ def render_track_artifacts(
         )
         manifest[video_filename] = sha_video
 
-    # 3. Write manifest.json
+    # 3. Write manifest.json including artifact hashes and frame/track metadata
+    manifest_payload: dict[str, Any] = {
+        "track_idx": track_idx,
+        "p_score": p_score,
+        "decision_band": decision_band,
+        "artifacts": dict(manifest),
+        "frames": [
+            {
+                "clip_k": ef.clip_k,
+                "frame_t": ef.frame_t,
+                "orig_frame_idx": ef.orig_frame_idx,
+                "score": ef.score,
+                "file": f"webp/frame_k{ef.clip_k:02d}_t{ef.frame_t:02d}_idx{ef.orig_frame_idx:05d}.webp",
+            }
+            for ef in track_evidence_frames
+        ],
+    }
     manifest_filename = "manifest.json"
     manifest_path = os.path.join(output_dir, manifest_filename)
-    sha_manifest = write_manifest_json(manifest, manifest_path)
+    sha_manifest = write_manifest_json(manifest_payload, manifest_path)
     manifest[manifest_filename] = sha_manifest
 
     # 4. Compute Merkle root over all artifact hashes
