@@ -8,7 +8,7 @@
 export const FORBIDDEN_WORDS = [
     "\\bFAKE\\b",
     "\\bREAL\\b",
-    "\\b100%\\b",
+    "\\b100%",
     "guaranteed",
     "AI-certified"
 ];
