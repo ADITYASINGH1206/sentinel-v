@@ -42,7 +42,7 @@ To activate the bot, add your Gemini API Key to GitHub Repository Secrets:
 3. Click **"Get API key"** and create a new key (free tier is fully sufficient).
 
 ### Step 2: Add Secret to GitHub
-1. Open your repository on GitHub: [https://github.com/ADITYASINGH1206/sentinel-v](https://github.com/ADITYASINGH1206/sentinel-v).
+1. Open your repository on GitHub: [https://github.com/ADITYASINGH1206/veriframe](https://github.com/ADITYASINGH1206/veriframe).
 2. Navigate to **Settings** > **Secrets and variables** > **Actions**.
 3. Click the green **"New repository secret"** button.
 4. Set:

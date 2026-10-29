@@ -10,5 +10,5 @@ export const BRAND = {
   tagline: 'Calibrated, explainable, verifiable video deepfake screening.',
   consoleName: 'VeriFrame Console',
   detectorFamily: 'S-MSDT',
-  repoUrl: 'https://github.com/ADITYASINGH1206/sentinel-v',
+  repoUrl: 'https://github.com/ADITYASINGH1206/veriframe',
 } as const;

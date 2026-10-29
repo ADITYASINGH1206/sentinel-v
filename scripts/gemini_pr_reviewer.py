@@ -329,7 +329,7 @@ def get_github_repo() -> str:
             return res.stdout.strip()
     except Exception:
         pass
-    return "ADITYASINGH1206/sentinel-v"
+    return "ADITYASINGH1206/veriframe"
 
 
 def post_or_update_github_comment(pr_number: str, comment_body: str) -> None:
