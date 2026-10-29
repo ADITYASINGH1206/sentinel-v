@@ -43,13 +43,14 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
   // Sampling windows for long videos (> 30s): initial 8s + 4 spaced 32-frame windows (SPEC §2.3)
   const windowLen = 32.0 / fps;
   const isLongVideo = duration > 30.0;
+  const remainingDuration = Math.max(0, duration - 8.0);
   const samplingWindows = isLongVideo
     ? [
         { start: 0, end: 8 },
-        { start: duration * 0.25, end: duration * 0.25 + windowLen },
-        { start: duration * 0.5, end: duration * 0.5 + windowLen },
-        { start: duration * 0.75, end: duration * 0.75 + windowLen },
-        { start: Math.max(duration * 0.75 + windowLen, duration - windowLen), end: duration },
+        { start: 8 + remainingDuration * 0.2, end: 8 + remainingDuration * 0.2 + windowLen },
+        { start: 8 + remainingDuration * 0.4, end: 8 + remainingDuration * 0.4 + windowLen },
+        { start: 8 + remainingDuration * 0.6, end: 8 + remainingDuration * 0.6 + windowLen },
+        { start: Math.max(8 + remainingDuration * 0.8, duration - windowLen), end: duration },
       ]
     : [{ start: 0, end: duration }];
 

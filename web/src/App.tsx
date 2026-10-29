@@ -1,12 +1,13 @@
 import React from 'react';
-import { HashRouter, Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate, useParams, useMatch } from 'react-router-dom';
 import { Dashboard } from './routes/Dashboard';
 import { ReviewWorkspace } from './routes/ReviewWorkspace';
 import { CaseDetail } from './routes/CaseDetail';
 
 function AppContent() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const isDashboard = Boolean(useMatch('/'));
+  const isReview = Boolean(useMatch('/review/*')) || Boolean(useMatch('/review'));
 
   return (
     <div className="min-h-screen bg-bg text-text flex flex-col">
@@ -27,7 +28,7 @@ function AppContent() {
             <button
               onClick={() => navigate('/')}
               className={`px-3 py-1 rounded font-medium transition-colors ${
-                location.pathname === '/'
+                isDashboard
                   ? 'bg-accent text-white'
                   : 'text-muted hover:text-text hover:bg-bg'
               }`}
@@ -37,7 +38,7 @@ function AppContent() {
             <button
               onClick={() => navigate('/review')}
               className={`px-3 py-1 rounded font-medium transition-colors ${
-                location.pathname === '/review'
+                isReview
                   ? 'bg-accent text-white'
                   : 'text-muted hover:text-text hover:bg-bg'
               }`}

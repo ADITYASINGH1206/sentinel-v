@@ -137,6 +137,13 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
         boxY - 6
       );
 
+      // Simulated data indicator until M4 evidence API is integrated
+      ctx.fillStyle = 'rgba(234, 179, 8, 0.85)';
+      ctx.fillRect(boxX + 115, boxY - 20, 75, 20);
+      ctx.font = 'bold 10px monospace';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('SIMULATED', boxX + 120, boxY - 6);
+
       ctx.restore();
     },
     [overlayVisible, opacity, activeTrack, fps]
