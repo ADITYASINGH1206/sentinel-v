@@ -169,8 +169,12 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
     };
 
     animId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animId);
-  }, [drawOverlay]);
+    return () => {
+      if (animId) {
+        cancelAnimationFrame(animId);
+      }
+    };
+  }, [drawOverlay, overlayVisible, opacity, selectedTrackIdx]);
 
   // Video event handlers
   const handleTimeUpdate = () => {
