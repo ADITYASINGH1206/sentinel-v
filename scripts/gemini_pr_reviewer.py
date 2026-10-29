@@ -257,7 +257,9 @@ def call_gemini(prompt: str, api_key: str) -> str:
                         return text
             except urllib.error.HTTPError as e:
                 err_body = e.read().decode("utf-8", errors="replace")
-                print(f"Gemini API model {model} attempt {attempt} HTTP error {e.code}: {err_body[:200]}")
+                print(
+                    f"Gemini API model {model} attempt {attempt} HTTP error {e.code}: {err_body[:200]}"
+                )
                 last_err = e
                 if e.code in (429, 503):
                     time.sleep(attempt * 2)
@@ -336,7 +338,9 @@ def post_or_update_github_comment(pr_number: str, comment_body: str) -> None:
     repo = get_github_repo()
 
     if not token or not repo:
-        print("Warning: GITHUB_TOKEN or GITHUB_REPOSITORY missing. Attempting standard gh pr comment...")
+        print(
+            "Warning: GITHUB_TOKEN or GITHUB_REPOSITORY missing. Attempting standard gh pr comment..."
+        )
         cmd = ["gh", "pr", "comment", str(pr_number), "--body", comment_body]
         if repo:
             cmd.extend(["--repo", repo])
@@ -418,7 +422,9 @@ def post_or_update_github_comment(pr_number: str, comment_body: str) -> None:
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            print(f"Successfully posted AI review comment to PR #{pr_number} (Status {resp.status})")
+            print(
+                f"Successfully posted AI review comment to PR #{pr_number} (Status {resp.status})"
+            )
     except Exception as e:
         print(f"Failed to post comment via REST API: {e}. Falling back to gh CLI...")
         cmd = ["gh", "pr", "comment", str(pr_number), "--body", comment_body]
@@ -519,7 +525,9 @@ def post_inline_review_comments(pr_number: str, head_sha: str, suggestions: list
                     posted_count += 1
             except urllib.error.HTTPError as e:
                 err_resp = e.read().decode("utf-8", errors="replace")
-                print(f"Could not post inline comment on {path}:{line} (HTTP {e.code}): {err_resp[:180]}")
+                print(
+                    f"Could not post inline comment on {path}:{line} (HTTP {e.code}): {err_resp[:180]}"
+                )
             except Exception as e:
                 print(f"Error posting inline comment on {path}:{line}: {e}")
         except Exception as e:
@@ -585,7 +593,9 @@ def main():
         # 2. Post inline code suggestions as interactive conversations
         if suggestions:
             head_sha = get_pr_head_sha(pr_number)
-            print(f"Found {len(suggestions)} inline suggestions. Posting conversations on commit {head_sha[:8]}...")
+            print(
+                f"Found {len(suggestions)} inline suggestions. Posting conversations on commit {head_sha[:8]}..."
+            )
             post_inline_review_comments(pr_number, head_sha, suggestions)
 
 
