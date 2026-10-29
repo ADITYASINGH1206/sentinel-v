@@ -99,7 +99,7 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
                 x1={win.start}
                 x2={win.end}
                 fill="#888888"
-                fillOpacity={0.08}
+                fillOpacity={0.12}
               />
             ))}
 
