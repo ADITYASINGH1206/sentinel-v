@@ -87,13 +87,15 @@ Produce a comprehensive GitHub Markdown review with these exact sections:
 def get_pr_diff(pr_number: str = None) -> str:
     """Get filtered git diff for the pull request."""
     raw_diff = ""
+    repo = os.environ.get("GITHUB_REPOSITORY")
 
     # 1. First try gh pr diff if pr_number is known
     if pr_number:
         try:
-            res = subprocess.run(
-                ["gh", "pr", "diff", str(pr_number)], capture_output=True, text=True
-            )
+            cmd = ["gh", "pr", "diff", str(pr_number)]
+            if repo:
+                cmd.extend(["--repo", repo])
+            res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode == 0 and res.stdout.strip():
                 raw_diff = res.stdout
         except Exception:
@@ -135,8 +137,8 @@ def get_pr_diff(pr_number: str = None) -> str:
 
 def call_gemini(prompt: str, api_key: str) -> str:
     """Call Google Gemini API using native urllib."""
-    # Prefer gemini-2.5-flash, fallback to gemini-1.5-flash
-    models = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    # Prefer gemini-2.5-flash, fallback to gemini-2.5-flash-lite or gemini-flash-latest
+    models = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
     last_err = None
 
     for model in models:
@@ -170,16 +172,18 @@ def call_gemini(prompt: str, api_key: str) -> str:
 
 
 def post_github_comment(pr_number: str, comment_body: str) -> None:
-    """Post review comment on GitHub PR using gh CLI."""
-    cmd = ["gh", "pr", "comment", pr_number, "--body", comment_body]
+    """Post review comment on GitHub PR using gh CLI or GitHub REST API."""
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    cmd = ["gh", "pr", "comment", str(pr_number), "--body", comment_body]
+    if repo:
+        cmd.extend(["--repo", repo])
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode == 0:
         print(f"Successfully posted AI review comment to PR #{pr_number}")
     else:
         print(f"Failed to post comment with gh CLI: {res.stderr}")
-        # Fallback to GitHub REST API with GITHUB_TOKEN
-        token = os.environ.get("GITHUB_TOKEN")
-        repo = os.environ.get("GITHUB_REPOSITORY")
+        # Fallback to GitHub REST API with GITHUB_TOKEN or GH_TOKEN
+        token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
         if token and repo:
             api_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
             req = urllib.request.Request(
@@ -192,8 +196,11 @@ def post_github_comment(pr_number: str, comment_body: str) -> None:
                 },
                 method="POST",
             )
-            with urllib.request.urlopen(req) as r:
-                print(f"Posted review via GitHub REST API (Status {r.status})")
+            try:
+                with urllib.request.urlopen(req) as r:
+                    print(f"Posted review via GitHub REST API (Status {r.status})")
+            except Exception as e:
+                print(f"Failed to post review via GitHub REST API: {e}")
 
 
 def main():

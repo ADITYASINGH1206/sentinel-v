@@ -1,8 +1,14 @@
 name: Gemini AI PR Reviewer
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        default: "13"
 
 permissions:
   contents: read
@@ -26,12 +32,14 @@ jobs:
 
       - name: Check for GEMINI_API_KEY
         id: check_key
+        env:
+          KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then
+          if [ -z "$KEY" ]; then
             echo "::warning ::GEMINI_API_KEY secret is not set in repository settings. Skipping AI review."
-            echo "has_key=false" >> $GITHUB_OUTPUT
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
           else
-            echo "has_key=true" >> $GITHUB_OUTPUT
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run Gemini AI Reviewer
@@ -39,10 +47,11 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          PR_TITLE: ${{ github.event.pull_request.title || 'Manual Workflow PR Review' }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login || github.actor }}
+          GITHUB_BASE_REF: ${{ github.base_ref || 'main' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           python3 scripts/gemini_pr_reviewer.py
-
