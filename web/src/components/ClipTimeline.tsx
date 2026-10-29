@@ -47,10 +47,11 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
   const samplingWindows = isLongVideo
     ? [
         { start: 0, end: 8 },
-        { start: 8 + remainingDuration * 0.2, end: 8 + remainingDuration * 0.2 + windowLen },
-        { start: 8 + remainingDuration * 0.4, end: 8 + remainingDuration * 0.4 + windowLen },
-        { start: 8 + remainingDuration * 0.6, end: 8 + remainingDuration * 0.6 + windowLen },
-        { start: Math.max(8 + remainingDuration * 0.8, duration - windowLen), end: duration },
+        // Calculate spaced windows dynamically for even distribution
+        ...Array.from({ length: 4 }).map((_, i) => {
+          const segmentStart = 8 + (remainingDuration / 5) * (i + 1);
+          return { start: segmentStart, end: Math.min(segmentStart + windowLen, duration) };
+        }),
       ]
     : [{ start: 0, end: duration }];
 

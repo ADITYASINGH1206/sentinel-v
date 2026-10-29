@@ -20,6 +20,7 @@ interface CaseDetailProps {
 }
 
 export const CaseDetail: React.FC<CaseDetailProps> = ({ caseId, onBack, onOpenReview }) => {
+  // TODO: Fetch real case data using caseId from backend API once case endpoint is integrated
   return (
     <div className="flex flex-col min-h-screen bg-bg text-text">
       {/* Header */}
@@ -27,6 +28,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({ caseId, onBack, onOpenRe
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
+            aria-label="Back to queue"
             className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

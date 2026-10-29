@@ -228,6 +228,12 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
     onOverlayToggled?.();
   }, [onOverlayToggled]);
 
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
+
   // Global review hotkeys listener when player is mounted
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

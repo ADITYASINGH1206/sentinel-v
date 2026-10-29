@@ -33,6 +33,7 @@ function AppContent() {
                   : 'text-muted hover:text-text hover:bg-bg'
               }`}
               aria-current={isDashboard ? 'page' : undefined}
+              aria-label="Go to Queue Dashboard"
             >
               Queue Dashboard
             </button>
@@ -44,6 +45,7 @@ function AppContent() {
                   : 'text-muted hover:text-text hover:bg-bg'
               }`}
               aria-current={isReview ? 'page' : undefined}
+              aria-label="Go to Review Workspace"
             >
               Review Workspace
             </button>
