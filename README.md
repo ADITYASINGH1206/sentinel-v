@@ -95,7 +95,7 @@ VeriFrame is a video deepfake screening platform and reviewer console built on t
 
 ```bash
 # Clone and enter repository
-git clone https://github.com/ADITYASINGH1206/sentinel-v.git
+git clone https://github.com/ADITYASINGH1206/veriframe.git
 cd sentinel-v
 
 # Initialize development environment
@@ -150,7 +150,7 @@ VeriFrame is built concurrently across two parallel workstreams:
   - SENTINEL platform integration adapter (M8)
   - Security hardening, SSRF sandboxing, and load testing (M11)
 
-See [GitHub Issues](https://github.com/ADITYASINGH1206/sentinel-v/issues) for detailed task specifications and acceptance criteria.
+See [GitHub Issues](https://github.com/ADITYASINGH1206/veriframe/issues) for detailed task specifications and acceptance criteria.
 
 ---
 
