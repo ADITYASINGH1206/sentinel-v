@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SENTINEL-V Video Screening API",
+    title="VeriFrame Video Screening API",
     version="1.0.0",
     description="Calibrated, auditable video deepfake screening service on the S-MSDT detector family.",
     openapi_url="/openapi.json",

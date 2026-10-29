@@ -1,0 +1,9 @@
+{
+  "source": "S-MSDT paper (Paper A), pooled FF++ c23 + DFD test split; TPR at a fixed false-positive rate",
+  "split": "test",
+  "models": {
+    "S": { "label": "S-MSDT-S", "description": "Single frame", "fpr_1": 0.507, "fpr_5": 0.639 },
+    "ST": { "label": "S-MSDT-ST", "description": "8-frame temporal", "fpr_1": 0.471, "fpr_5": 0.589 },
+    "Full": { "label": "S-MSDT", "description": "Full (forensic stream)", "fpr_1": 0.394, "fpr_5": 0.53 }
+  }
+}

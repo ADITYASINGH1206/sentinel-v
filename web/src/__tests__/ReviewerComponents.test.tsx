@@ -1,32 +1,28 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BandChip } from '../components/BandChip';
 import { ScoreReadout } from '../components/ScoreReadout';
-import { Dashboard } from '../routes/Dashboard';
-import { ReviewWorkspace } from '../routes/ReviewWorkspace';
 import { ClipTimeline } from '../components/ClipTimeline';
+import Dashboard from '../pages/console/Dashboard';
+import { ReviewWorkspace } from '../pages/console/ReviewWorkspace';
+import { demoReviewQueue } from '../data/demo';
+import { renderWithProviders, setDemoDataMode } from './helpers';
 
 describe('Reviewer Console UI Components (SPEC §14)', () => {
+  beforeEach(() => {
+    setDemoDataMode();
+  });
+
   describe('BandChip', () => {
-    it('renders Likely authentic with correct label', () => {
-      render(<BandChip band="likely_authentic" />);
-      expect(screen.getByText('Likely authentic')).toBeDefined();
-    });
-
-    it('renders Needs review with correct label', () => {
-      render(<BandChip band="needs_review" />);
-      expect(screen.getByText('Needs review')).toBeDefined();
-    });
-
-    it('renders Likely manipulated with correct label', () => {
-      render(<BandChip band="likely_manipulated" />);
-      expect(screen.getByText('Likely manipulated')).toBeDefined();
-    });
-
-    it('renders Inconclusive with correct label', () => {
-      render(<BandChip band="inconclusive" />);
-      expect(screen.getByText('Inconclusive')).toBeDefined();
+    it.each([
+      ['likely_authentic', 'Likely authentic'],
+      ['needs_review', 'Needs review'],
+      ['likely_manipulated', 'Likely manipulated'],
+      ['inconclusive', 'Inconclusive'],
+    ] as const)('renders %s as "%s"', (band, label) => {
+      render(<BandChip band={band} />);
+      expect(screen.getByText(label)).toBeDefined();
     });
   });
 
@@ -43,46 +39,41 @@ describe('Reviewer Console UI Components (SPEC §14)', () => {
   });
 
   describe('Dashboard', () => {
-    it('renders review queue with triage metrics and actions', () => {
-      const handleStart = vi.fn();
-      const handleView = vi.fn();
-      render(<Dashboard onStartReview={handleStart} onViewCase={handleView} />);
-
-      expect(screen.getByText('Reviewer Console')).toBeDefined();
-      expect(screen.getByText(/Start Review Queue/)).toBeDefined();
-      expect(screen.getByText('an_queue_8841')).toBeDefined();
+    it('renders KPIs and labels demo data', async () => {
+      renderWithProviders(<Dashboard />);
+      expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeDefined();
+      await waitFor(() => expect(screen.getAllByText('DEMO DATA').length).toBeGreaterThan(0));
+      expect(screen.getAllByText('Needs review').length).toBeGreaterThan(0);
+      expect(screen.getByText(/Start reviewing/)).toBeDefined();
     });
 
-    it('triggers review callback on button click', () => {
-      const handleStart = vi.fn();
-      const handleView = vi.fn();
-      render(<Dashboard onStartReview={handleStart} onViewCase={handleView} />);
-
-      const reviewButtons = screen.getAllByRole('button', { name: /Review/i });
-      fireEvent.click(reviewButtons[0]);
-      expect(handleStart).toHaveBeenCalled();
+    it('does not show invented triage metrics', async () => {
+      renderWithProviders(<Dashboard />);
+      await waitFor(() => screen.getAllByText('DEMO DATA'));
+      expect(screen.queryByText(/Avg Triage Speed/i)).toBeNull();
     });
   });
 
   describe('ReviewWorkspace', () => {
-    it('renders triage options with keyboard shortcut hints', () => {
-      render(<ReviewWorkspace />);
+    const caseId = demoReviewQueue()[0].id;
 
-      expect(screen.getByText('Reviewer Triage')).toBeDefined();
-      expect(screen.getByText('Likely Authentic')).toBeDefined();
-      expect(screen.getByText('Likely Manipulated')).toBeDefined();
-      expect(screen.getByText('Cannot Tell / Inconclusive')).toBeDefined();
-      expect(screen.getByText(/Submit & Next/)).toBeDefined();
+    it('renders the decisions the API accepts, with keyboard hints', async () => {
+      renderWithProviders(<ReviewWorkspace />, { route: `/app/review/${caseId}`, path: '/app/review/:id' });
+      await waitFor(() => expect(screen.getByText('Reviewer decision')).toBeDefined());
+      expect(screen.getByRole('radio', { name: /Authentic/ })).toBeDefined();
+      expect(screen.getByRole('radio', { name: /Manipulated/ })).toBeDefined();
+      expect(screen.getByRole('radio', { name: /Can't tell/ })).toBeDefined();
+      expect(screen.getByRole('button', { name: /Submit & next/ }).hasAttribute('disabled')).toBe(true);
     });
 
-    it('allows selecting determination via button click', () => {
-      render(<ReviewWorkspace />);
-
-      const manipulatedBtn = screen.getByRole('button', { name: /Likely Manipulated/i });
-      fireEvent.click(manipulatedBtn);
-
-      const submitBtn = screen.getByRole('button', { name: /Submit & Next/i });
-      expect(submitBtn.hasAttribute('disabled')).toBe(false);
+    it('selects a decision by click and by keyboard', async () => {
+      renderWithProviders(<ReviewWorkspace />, { route: `/app/review/${caseId}`, path: '/app/review/:id' });
+      await waitFor(() => screen.getByText('Reviewer decision'));
+      fireEvent.click(screen.getByRole('radio', { name: /Manipulated/ }));
+      expect(screen.getByRole('radio', { name: /Manipulated/ }).getAttribute('aria-checked')).toBe('true');
+      fireEvent.keyDown(window, { key: '1', code: 'Digit1' });
+      await waitFor(() => expect(screen.getByRole('radio', { name: /Authentic/ }).getAttribute('aria-checked')).toBe('true'));
+      expect(screen.getByRole('button', { name: /Submit & next/ }).hasAttribute('disabled')).toBe(false);
     });
   });
 
@@ -114,4 +105,3 @@ describe('Reviewer Console UI Components (SPEC §14)', () => {
     });
   });
 });
-

@@ -1,0 +1,47 @@
+{
+  "receipt_version": "sv-receipt/1",
+  "receipt_id": "rcpt_demo_public_8832",
+  "analysis_id": "an_public_demo_sample",
+  "issued_at": "2026-10-29T10:00:00Z",
+  "issuer": {
+    "name": "SENTINEL-V",
+    "key_id": "ed25519:default",
+    "public_key_url": "/.well-known/sv-keys.json",
+    "public_key": "Au_4ajDMJxmFzFjhgyBNnxjPg9jQoIyopxz5CTly238"
+  },
+  "content": {
+    "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "size_bytes": 1420580,
+    "duration_s": 14.5,
+    "container": "mp4"
+  },
+  "model": {
+    "bundle_id": "smsdt_st_v1",
+    "weights_sha256": "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069",
+    "variant": "st"
+  },
+  "policy": {
+    "policy_id": "standard_screening_v1",
+    "policy_version": "1.0.0",
+    "tau": 0.5,
+    "prior_prevalence": 0.01
+  },
+  "result": {
+    "decision": "likely_authentic",
+    "p_bal": 0.12,
+    "p_prior": 0.0012
+  },
+  "tracks": [
+    {
+      "track_idx": 0,
+      "n_frames": 435,
+      "u": 0.95,
+      "p_bal": 0.12,
+      "decisive": true
+    }
+  ],
+  "signature": {
+    "alg": "Ed25519",
+    "value": "a7Ir1r9IsiGDA_WkO7-a4iJrCUBQFjeOaYMFx3PoA5mO2cKUqSBIE118STSPI0XDy_uzd-Ov3fmadck-qK2VCg"
+  }
+}

@@ -64,3 +64,31 @@ This file records all architectural and design decisions made for SENTINEL-V in 
   - **Stream B (Systems, Full-Stack & Web3):** Assigned to @AdityaRaj1304. Covers core monorepo infra, FastAPI service, Celery task pipelines, reviewer console SPA, Merkle anchoring contracts, and SENTINEL adapters.
 - **Consequences:** Clear task ownership, independent pull requests, and parallel velocity.
 
+---
+
+## ADR 007: Rebrand SENTINEL-V to VeriFrame (user-facing only)
+
+- **Status:** Accepted
+- **Date:** 2026-10-29
+- **Context:** The product needed its own name, distinct from the SENTINEL platform it integrates with.
+- **Decision:** Rename every user-facing string to **VeriFrame**: the web app (single source `web/src/brand.ts`), page titles and favicon, the OpenAPI title, the HTML/PDF case report headers, README and docs titles.
+- **Not renamed, on purpose:**
+  - Python packages and imports (`sv_core`, `sv_engine`, `sv_api`, …) and the `SV_` environment prefix: renaming them is a large refactor with no user value and would break deployments.
+  - The receipt format `sv-receipt/1`, `/.well-known/sv-keys.json`, and the `issuer.name` inside receipts that were already signed (the signed demo receipt keeps its historical issuer name).
+  - The `/compat/moderate/video` contract used by SENTINEL, and references to the separate S-MSDT and SENTINEL projects.
+- **Follow-ups:** the GitHub repository rename and a name-availability check are human actions (QUESTIONS.md B9, B10). Container names in compose are unchanged to avoid breaking scripts.
+
+---
+
+## ADR 008: Design system, motion policy and honest demo data for the web app
+
+- **Status:** Accepted
+- **Date:** 2026-10-29
+- **Context:** The console rendered hard-coded sample data and a simulated overlay without saying so, and had no home page.
+- **Decision:**
+  - Tokens as RGB channels in `web/src/index.css` (light and dark), primitives in `web/src/design/`, `framer-motion` (LazyMotion + `m.*`) for animation.
+  - Motion: only opacity/transform/pathLength; durations 80–320 ms; loops pause off-screen; a user setting (system / reduce / full) maps to `MotionConfig reducedMotion`, and CSS loops stop under `html[data-motion='reduce']`.
+  - Data: live API first. Where an endpoint does not exist yet (case list, review queue) or the API is unreachable, the console shows generated demo data with a persistent **DEMO DATA** badge and banner. Real analysis ids never fall back to demo data.
+  - Demo scores are computed (`p_bal = σ(a·u + b)` with the Stage B calibration), bands come from the mirrored `strict-low-fpr` preset, and the demo video is a synthetic abstract subject (`web/scripts/make_demo_video.py`).
+  - Metrics shown on the home page come only from `web/src/content/sourced/` with their source named.
+- **Consequences:** The console looks and behaves like the product while being explicit about what is demo data. Routing moved from `HashRouter` to `BrowserRouter` (legacy `#/…` links redirect); nginx serves the SPA with a fallback and proxies `/v1`.

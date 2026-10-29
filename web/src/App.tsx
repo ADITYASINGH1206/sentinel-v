@@ -1,110 +1,79 @@
-import React from 'react';
-import { HashRouter, Routes, Route, useNavigate, useParams, useMatch } from 'react-router-dom';
-import { Dashboard } from './routes/Dashboard';
-import { ReviewWorkspace } from './routes/ReviewWorkspace';
-import { CaseDetail } from './routes/CaseDetail';
-import { PublicVerify } from './routes/PublicVerify';
+import React, { Suspense, lazy } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { MarketingLayout } from './layouts/MarketingLayout';
+import { ConsoleLayout } from './layouts/ConsoleLayout';
+import { Skeleton } from './design/ui';
 
-function AppContent() {
-  const navigate = useNavigate();
-  const isDashboard = Boolean(useMatch('/'));
-  const isReview = Boolean(useMatch('/review/*')) || Boolean(useMatch('/review'));
-  const isVerify = Boolean(useMatch('/verify/*')) || Boolean(useMatch('/verify'));
+const Home = lazy(() => import('./pages/marketing/Home'));
+const PublicVerify = lazy(() => import('./pages/verify/PublicVerifyPage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const Dashboard = lazy(() => import('./pages/console/Dashboard'));
+const Analyze = lazy(() => import('./pages/console/Analyze'));
+const Cases = lazy(() => import('./pages/console/Cases'));
+const CaseDetail = lazy(() => import('./pages/console/CaseDetail'));
+const ReviewQueue = lazy(() => import('./pages/console/ReviewQueue'));
+const ReviewWorkspace = lazy(() => import('./pages/console/ReviewWorkspace'));
+const Policies = lazy(() => import('./pages/console/Policies'));
+const SettingsPage = lazy(() => import('./pages/console/Settings'));
 
-  return (
-    <div className="min-h-screen bg-bg text-text flex flex-col">
-      {/* Top Navigation Bar */}
-      <nav className="border-b border-border bg-surface px-6 py-2.5 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-6">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 font-bold tracking-wider text-accent text-sm"
-          >
-            <span>SENTINEL-V</span>
-            <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-mono font-medium">
-              CONSOLE
-            </span>
-          </button>
-
-          <div className="flex items-center gap-1 border-l border-border pl-4">
-            <button
-              onClick={() => navigate('/')}
-              className={`px-3 py-1 rounded font-medium transition-colors ${
-                isDashboard
-                  ? 'bg-accent text-white'
-                  : 'text-muted hover:text-text hover:bg-bg'
-              }`}
-              aria-current={isDashboard ? 'page' : undefined}
-              aria-label="Go to Queue Dashboard"
-            >
-              Queue Dashboard
-            </button>
-            <button
-              onClick={() => navigate('/review')}
-              className={`px-3 py-1 rounded font-medium transition-colors ${
-                isReview
-                  ? 'bg-accent text-white'
-                  : 'text-muted hover:text-text hover:bg-bg'
-              }`}
-              aria-current={isReview ? 'page' : undefined}
-              aria-label="Go to Review Workspace"
-            >
-              Review Workspace
-            </button>
-            <button
-              onClick={() => navigate('/verify')}
-              className={`px-3 py-1 rounded font-medium transition-colors ${
-                isVerify
-                  ? 'bg-accent text-white'
-                  : 'text-muted hover:text-text hover:bg-bg'
-              }`}
-              aria-current={isVerify ? 'page' : undefined}
-              aria-label="Go to Public Verifier"
-            >
-              Public Verifier
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Route Views */}
-      <div className="flex-1">
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Dashboard
-                onStartReview={() => navigate('/review')}
-                onViewCase={(id) => navigate(`/cases/${id}`)}
-              />
-            }
-          />
-          <Route path="/review" element={<ReviewWorkspace />} />
-          <Route
-            path="/cases/:id"
-            element={
-              <CaseDetailWrapper
-                onBack={() => navigate('/')}
-                onOpenReview={() => navigate('/review')}
-              />
-            }
-          />
-          <Route path="/verify" element={<PublicVerify />} />
-        </Routes>
-      </div>
+const PageFallback: React.FC = () => (
+  <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10" aria-busy="true" aria-label="Loading">
+    <Skeleton className="h-8 w-64" />
+    <Skeleton className="h-4 w-96 max-w-full" />
+    <div className="grid gap-4 sm:grid-cols-3">
+      <Skeleton className="h-24" />
+      <Skeleton className="h-24" />
+      <Skeleton className="h-24" />
     </div>
-  );
+  </div>
+);
+
+/** Old HashRouter links (#/review, #/cases/:id, #/verify) keep working. */
+function legacyHashTarget(hash: string): string | null {
+  if (!hash.startsWith('#/')) return null;
+  const path = hash.slice(1);
+  if (path === '/' || path === '') return '/app';
+  if (path.startsWith('/verify')) return path;
+  return `/app${path}`;
 }
 
-function CaseDetailWrapper({ onBack, onOpenReview }: { onBack: () => void; onOpenReview: () => void }) {
-  const { id: caseId } = useParams<{ id: string }>();
-  return <CaseDetail caseId={caseId || 'an_mock_default'} onBack={onBack} onOpenReview={onOpenReview} />;
+const LegacyRedirect: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+  const target = legacyHashTarget(location.hash);
+  if (target) return <Navigate to={target} replace />;
+  return <>{children}</>;
+};
+
+export function AppRoutes() {
+  return (
+    <LegacyRedirect>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route element={<MarketingLayout />}>
+            <Route index element={<Home />} />
+            <Route path="verify" element={<PublicVerify />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+          <Route path="app" element={<ConsoleLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="analyze" element={<Analyze />} />
+            <Route path="cases" element={<Cases />} />
+            <Route path="cases/:id" element={<CaseDetail />} />
+            <Route path="review" element={<ReviewQueue />} />
+            <Route path="review/:id" element={<ReviewWorkspace />} />
+            <Route path="policies" element={<Policies />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </LegacyRedirect>
+  );
 }
 
 export default function App() {
   return (
-    <HashRouter>
-      <AppContent />
-    </HashRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppRoutes />
+    </BrowserRouter>
   );
 }

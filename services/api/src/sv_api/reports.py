@@ -31,7 +31,7 @@ def generate_case_report_html(analysis: AnalysisModel) -> str:
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>SENTINEL-V Case Report — {html.escape(analysis.id)}</title>
+  <title>VeriFrame Case Report — {html.escape(analysis.id)}</title>
   <style>
     body {{
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -103,7 +103,7 @@ def generate_case_report_html(analysis: AnalysisModel) -> str:
 </head>
 <body>
   <div class="header">
-    <h1>SENTINEL-V Screening & Audit Report</h1>
+    <h1>VeriFrame Screening & Audit Report</h1>
     <p>Calibrated Deepfake Screening for Human Reviewers (SPEC §14, §16)</p>
   </div>
 
@@ -164,7 +164,7 @@ def generate_case_report_pdf(analysis: AnalysisModel) -> bytes:
 
     # Lines to render
     text_lines = [
-        ("F1", 16, 50, 740, "SENTINEL-V Case Screening Report"),
+        ("F1", 16, 50, 740, "VeriFrame Case Screening Report"),
         ("F2", 10, 50, 715, f"Analysis ID: {analysis.id}"),
         ("F1", 12, 50, 680, f"VERDICT: {decision} (Calibrated Score p_bal: {p_bal:.4f})"),
         ("F2", 10, 50, 650, f"Policy: {analysis.policy_id} v{analysis.policy_version}"),

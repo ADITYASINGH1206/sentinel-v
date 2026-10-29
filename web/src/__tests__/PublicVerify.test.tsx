@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { PublicVerify } from '../routes/PublicVerify';
+import { PublicVerify } from '../pages/verify/PublicVerifyPage';
 
 describe('PublicVerify Component (SPEC §10)', () => {
   it('renders initial verification state with all 5 steps', () => {

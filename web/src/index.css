@@ -2,37 +2,184 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * VeriFrame design tokens (docs/design/tokens.md).
+ * Colors are stored as RGB channels so Tailwind opacity modifiers work (bg-accent/10).
+ */
 :root {
-  --bg: #F7F7F5;
-  --surface: #FFFFFF;
-  --border: #E4E4E0;
-  --text: #1A1D21;
-  --text-muted: #5C636B;
-  --accent: #1F4E79;
-  --band-authentic: #2E7D4F;
-  --band-review: #9A6700;
-  --band-manipulated: #B42318;
-  --band-inconclusive: #5C636B;
+  --bg: 247 249 251;
+  --surface: 255 255 255;
+  --surface-2: 241 244 248;
+  --border: 227 232 239;
+  --text: 11 18 32;
+  --muted: 86 97 115;
+  --accent: 11 122 133;
+  --accent-contrast: 255 255 255;
+  --accent-soft: 226 244 245;
+  --violet: 109 91 208;
+  --band-authentic: 33 116 74;
+  --band-review: 143 95 0;
+  --band-manipulated: 180 35 24;
+  --band-inconclusive: 86 97 115;
+  --shadow-1: 0 1px 2px rgb(11 18 32 / 0.06), 0 1px 1px rgb(11 18 32 / 0.04);
+  --shadow-2: 0 8px 24px rgb(11 18 32 / 0.08);
+  color-scheme: light;
 }
 
 .dark {
-  --bg: #0F1216;
-  --surface: #161B22;
-  --border: #2A313A;
-  --text: #E6E8EB;
-  --text-muted: #9AA3AD;
-  --accent: #6FA8DC;
-  --band-authentic: #5CC28A;
-  --band-review: #E3B341;
-  --band-manipulated: #F97066;
-  --band-inconclusive: #9AA3AD;
+  --bg: 7 11 18;
+  --surface: 13 20 31;
+  --surface-2: 18 27 41;
+  --border: 30 42 59;
+  --text: 231 237 245;
+  --muted: 147 161 181;
+  --accent: 44 199 192;
+  --accent-contrast: 4 33 31;
+  --accent-soft: 14 42 45;
+  --violet: 155 140 255;
+  --band-authentic: 92 201 146;
+  --band-review: 233 185 73;
+  --band-manipulated: 255 122 110;
+  --band-inconclusive: 147 161 181;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 8px 24px rgb(0 0 0 / 0.45);
+  color-scheme: dark;
 }
 
-body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  margin: 0;
-  padding: 0;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+  html[data-motion='reduce'] {
+    scroll-behavior: auto;
+  }
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+    margin: 0;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  ::selection {
+    background: rgb(var(--accent) / 0.25);
+  }
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.35);
+    border-radius: 6px;
+  }
+  .font-mono,
+  code,
+  kbd {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
+@layer components {
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgb(var(--surface-2)) 0%,
+      rgb(var(--border) / 0.7) 50%,
+      rgb(var(--surface-2)) 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer rounded-md;
+  }
+  html[data-motion='reduce'] .skeleton {
+    animation: none;
+  }
+  .grid-bg {
+    background-image: linear-gradient(rgb(var(--border) / 0.6) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--border) / 0.6) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 70%);
+  }
+  .text-gradient {
+    background: linear-gradient(100deg, rgb(var(--accent)) 10%, rgb(var(--violet)) 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .range {
+    @apply h-1.5 w-full cursor-pointer appearance-none rounded-full bg-border;
+    accent-color: rgb(var(--accent));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .skeleton {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- Home hero scan */
+@layer components {
+  .vf-scan {
+    --period: 2.8s;
+  }
+  .vf-scan .scan-line {
+    animation: vf-scan-line var(--period) cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+  .vf-scan .scan-cell {
+    opacity: var(--o);
+    animation: vf-scan-cell var(--period) linear infinite backwards;
+    animation-delay: calc((0.05 + 0.8 * var(--row) / 16) * var(--period));
+  }
+  .vf-scan[data-paused='true'] .scan-line,
+  .vf-scan[data-paused='true'] .scan-cell {
+    animation-play-state: paused;
+  }
+  html[data-motion='reduce'] .vf-scan .scan-line {
+    display: none;
+  }
+  html[data-motion='reduce'] .vf-scan .scan-cell {
+    animation: none;
+  }
+}
+
+@keyframes vf-scan-line {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  85% {
+    transform: translateY(236px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(236px);
+    opacity: 0;
+  }
+}
+
+@keyframes vf-scan-cell {
+  0% {
+    opacity: 0;
+  }
+  7% {
+    opacity: var(--o);
+  }
+  78% {
+    opacity: var(--o);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+html[data-motion='reduce'] .smil-dot {
+  display: none;
+}
+html[data-motion='reduce'] .animate-ping,
+html[data-motion='reduce'] .animate-drift {
+  animation: none;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
