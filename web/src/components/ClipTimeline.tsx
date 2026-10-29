@@ -16,9 +16,9 @@ interface ClipTimelineProps {
   tracks: TrackData[];
   selectedTrackIdx: number;
   currentTime: number;
-  duration?: number;
-  tau?: number;
-  fps?: number;
+  duration: number;
+  tau: number;
+  fps: number;
   onSeek: (timeInSeconds: number) => void;
 }
 
@@ -26,9 +26,9 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
   tracks,
   selectedTrackIdx,
   currentTime,
-  duration = 30.0,
-  tau = 0.5,
-  fps = 30.0,
+  duration,
+  tau,
+  fps,
   onSeek,
 }) => {
   const activeTrack = tracks.find((t) => t.track_idx === selectedTrackIdx) || tracks[0];

@@ -258,6 +258,7 @@ export const ReviewWorkspace: React.FC = () => {
             currentTime={currentTime}
             duration={analysis.duration_s}
             tau={analysis.tau}
+            fps={analysis.fps}
             onSeek={(t) => setSeekTime(t)}
           />
 

@@ -5,6 +5,7 @@ import { BandChip } from '../components/BandChip';
 import { ScoreReadout } from '../components/ScoreReadout';
 import { Dashboard } from '../routes/Dashboard';
 import { ReviewWorkspace } from '../routes/ReviewWorkspace';
+import { ClipTimeline } from '../components/ClipTimeline';
 
 describe('Reviewer Console UI Components (SPEC §14)', () => {
   describe('BandChip', () => {
@@ -82,6 +83,34 @@ describe('Reviewer Console UI Components (SPEC §14)', () => {
 
       const submitBtn = screen.getByRole('button', { name: /Submit & Next/i });
       expect(submitBtn.hasAttribute('disabled')).toBe(false);
+    });
+  });
+
+  describe('ClipTimeline', () => {
+    it('renders timeline with required props', () => {
+      const handleSeek = vi.fn();
+      render(
+        <ClipTimeline
+          tracks={[
+            {
+              track_idx: 0,
+              n_frames: 900,
+              u: 1.25,
+              p_bal: 0.72,
+              decisive: true,
+              clips: [{ k: 0, start_frame: 0, end_frame: 32, start_s: 0, p: 0.72 }],
+            },
+          ]}
+          selectedTrackIdx={0}
+          currentTime={0}
+          duration={30.0}
+          tau={0.5}
+          fps={30.0}
+          onSeek={handleSeek}
+        />
+      );
+      expect(screen.getByText('Clip Probability Timeline')).toBeDefined();
+      expect(screen.getByText(/Decision Threshold/)).toBeDefined();
     });
   });
 });

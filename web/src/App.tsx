@@ -50,9 +50,6 @@ function AppContent() {
           </div>
         </div>
 
-        <div className="text-muted">
-          Lead: <span className="text-text font-mono">Aditya Raj (Track B)</span>
-        </div>
       </nav>
 
       {/* Route Views */}
