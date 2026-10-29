@@ -144,6 +144,14 @@ def decode_video(
     if rotation in (90, 270):
         width, height = height, width
 
+    # Dimension bounds validation (protect against decompression bombs & malformed headers)
+    if width <= 0 or height <= 0:
+        container.close()
+        raise DecodeError(f"Invalid video dimensions: {width}x{height}")
+    if width > 8192 or height > 8192:
+        container.close()
+        raise DecodeError(f"Extreme video dimensions exceeding limits: {width}x{height}")
+
     windows = compute_sampling_windows(duration_s, fps, segment_len)
     if windows is not None:
         max_target_frame = max(end for _, end in windows)
