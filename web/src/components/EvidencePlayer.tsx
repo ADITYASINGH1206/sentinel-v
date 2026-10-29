@@ -344,6 +344,7 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
             <button
               onClick={jumpToPeakClip}
               title="Jump to Peak Suspicion (P)"
+              aria-label="Jump to peak suspicion clip"
               className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors border border-amber-200 dark:border-amber-800"
             >
               <Flame className="w-3.5 h-3.5" />
@@ -377,7 +378,7 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
               <button
                 onClick={toggleOverlay}
                 title="Toggle Heatmap Overlay (H)"
-                aria-label="Toggle overlay visibility"
+                aria-label={overlayVisible ? 'Hide heatmap overlay' : 'Show heatmap overlay'}
                 className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
               >
                 {overlayVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
@@ -398,6 +399,7 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
             <button
               onClick={() => setIsMuted(!isMuted)}
               title={isMuted ? 'Unmute' : 'Mute'}
+              aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'}
               className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-muted hover:text-text transition-colors"
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}

@@ -32,6 +32,7 @@ function AppContent() {
                   ? 'bg-accent text-white'
                   : 'text-muted hover:text-text hover:bg-bg'
               }`}
+              aria-current={isDashboard ? 'page' : undefined}
             >
               Queue Dashboard
             </button>
@@ -42,6 +43,7 @@ function AppContent() {
                   ? 'bg-accent text-white'
                   : 'text-muted hover:text-text hover:bg-bg'
               }`}
+              aria-current={isReview ? 'page' : undefined}
             >
               Review Workspace
             </button>
