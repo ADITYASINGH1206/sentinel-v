@@ -49,7 +49,7 @@ export const ClipTimeline: React.FC<ClipTimelineProps> = ({
         { start: duration * 0.25, end: duration * 0.25 + windowLen },
         { start: duration * 0.5, end: duration * 0.5 + windowLen },
         { start: duration * 0.75, end: duration * 0.75 + windowLen },
-        { start: Math.max(0, duration - windowLen), end: duration },
+        { start: Math.max(duration * 0.75 + windowLen, duration - windowLen), end: duration },
       ]
     : [{ start: 0, end: duration }];
 

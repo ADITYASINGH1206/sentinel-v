@@ -78,7 +78,7 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
 
       if (!overlayVisible) return;
 
-      // TODO: Replace simulated bounding box and heatmap with actual data from the evidence API (e.g., landmarks, detection scores, heatmap regions).
+      // TODO: Replace simulated bounding box and heatmap with actual data from the evidence API (landmarks, detection scores, heatmap regions) generated in Milestone M4.
       // Find current clip probability for selected track
       const currentClip = activeTrack?.clips.find(
         (c) => time >= c.start_s && time <= c.start_s + 8.0 / fps
