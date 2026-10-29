@@ -129,7 +129,10 @@ def decode_video(
     if fps <= 0:
         fps = 30.0
 
-    duration_s = float(stream.duration * stream.time_base) if stream.duration else 0.0
+    tb = stream.time_base
+    duration_s = (
+        float(stream.duration * tb) if (stream.duration is not None and tb is not None) else 0.0
+    )
     if duration_s <= 0 and container.duration:
         duration_s = float(container.duration) / float(av.time_base)
 
@@ -168,9 +171,9 @@ def decode_video(
                         continue
 
                 pts_s = (
-                    float(frame.pts * stream.time_base)
-                    if frame.pts is not None
-                    else (curr_idx / fps)
+                    float(frame.pts * tb)
+                    if (frame.pts is not None and tb is not None)
+                    else float(curr_idx / fps)
                 )
 
                 # Convert to BGR uint8
