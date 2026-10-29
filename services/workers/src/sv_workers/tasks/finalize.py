@@ -8,6 +8,7 @@ from sv_api.database import async_session_maker
 from sv_api.models import AnalysisModel, TrackModel
 from sv_api.sse import publish_progress
 from sv_core.enums import DecisionBand
+from sv_core.settings import settings
 from sv_engine.calibration import calibrate_platt
 from sv_engine.priors import adjust_for_prior, estimate_ppv
 from sv_receipts.crypto import generate_keypair
@@ -18,6 +19,56 @@ from sv_workers.tasks.utils import run_async
 # Known Platt scaling parameters for S-MSDT-ST (SPEC §2.1)
 PLATT_A = 0.6470
 PLATT_B = -0.5865
+
+
+async def _dispatch_completion_webhook(
+    analysis: AnalysisModel,
+    decision: str,
+    p_bal: float,
+    receipt_id: str,
+    now: datetime,
+) -> None:
+    target_webhook_url = getattr(analysis, "webhook_url", None) or settings.SENTINEL_WEBHOOK_URL
+    if not target_webhook_url:
+        return
+
+    if decision == DecisionBand.LIKELY_AUTHENTIC.value:
+        compat_status = "allowed"
+    elif decision == DecisionBand.NEEDS_REVIEW.value:
+        compat_status = "review"
+    elif decision == DecisionBand.LIKELY_MANIPULATED.value:
+        compat_status = "held"
+    elif decision == DecisionBand.INCONCLUSIVE.value:
+        compat_status = "inconclusive"
+    else:
+        compat_status = decision
+
+    review_required = compat_status == "review" or decision == DecisionBand.NEEDS_REVIEW.value
+    labels = ["face_manipulation_suspected"] if compat_status in ("review", "held") else []
+
+    webhook_payload = {
+        "post_id": getattr(analysis, "external_ref", None),
+        "analysis_id": analysis.id,
+        "status": compat_status,
+        "labels": labels,
+        "deepfake_confidence": round(float(p_bal), 4),
+        "deepfake_model_version": "smsdt-st-b",
+        "review_required": review_required,
+        "receipt_id": receipt_id,
+        "report_url": f"http://localhost:5173/cases/{analysis.id}",
+        "completed_at": now.isoformat() + "Z",
+    }
+
+    try:
+        from sv_api.webhook import dispatch_webhook
+
+        await dispatch_webhook(target_webhook_url, webhook_payload, settings.WEBHOOK_SECRET)
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Failed to dispatch webhook for %s: %s", analysis.id, exc
+        )
 
 
 async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[str, Any]:
@@ -42,6 +93,9 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
                 "finalize",
                 100,
                 f"Analysis completed: inconclusive ({analysis.inconclusive_reason})",
+            )
+            await _dispatch_completion_webhook(
+                analysis, DecisionBand.INCONCLUSIVE.value, 0.0, analysis.receipt_id, now
             )
             return {"analysis_id": analysis_id, "status": "completed", "decision": "inconclusive"}
 
@@ -125,6 +179,9 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
             "finalize",
             100,
             f"Screening complete: calibrated score {p_bal:.2f} ({decision})",
+        )
+        await _dispatch_completion_webhook(
+            analysis, decision, p_bal, signed_rcpt["receipt_id"], now
         )
 
         return {

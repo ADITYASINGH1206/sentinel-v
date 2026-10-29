@@ -3,11 +3,13 @@ import { HashRouter, Routes, Route, useNavigate, useParams, useMatch } from 'rea
 import { Dashboard } from './routes/Dashboard';
 import { ReviewWorkspace } from './routes/ReviewWorkspace';
 import { CaseDetail } from './routes/CaseDetail';
+import { PublicVerify } from './routes/PublicVerify';
 
 function AppContent() {
   const navigate = useNavigate();
   const isDashboard = Boolean(useMatch('/'));
   const isReview = Boolean(useMatch('/review/*')) || Boolean(useMatch('/review'));
+  const isVerify = Boolean(useMatch('/verify/*')) || Boolean(useMatch('/verify'));
 
   return (
     <div className="min-h-screen bg-bg text-text flex flex-col">
@@ -49,9 +51,20 @@ function AppContent() {
             >
               Review Workspace
             </button>
+            <button
+              onClick={() => navigate('/verify')}
+              className={`px-3 py-1 rounded font-medium transition-colors ${
+                isVerify
+                  ? 'bg-accent text-white'
+                  : 'text-muted hover:text-text hover:bg-bg'
+              }`}
+              aria-current={isVerify ? 'page' : undefined}
+              aria-label="Go to Public Verifier"
+            >
+              Public Verifier
+            </button>
           </div>
         </div>
-
       </nav>
 
       {/* Route Views */}
@@ -76,6 +89,7 @@ function AppContent() {
               />
             }
           />
+          <Route path="/verify" element={<PublicVerify />} />
         </Routes>
       </div>
     </div>
@@ -87,12 +101,10 @@ function CaseDetailWrapper({ onBack, onOpenReview }: { onBack: () => void; onOpe
   return <CaseDetail caseId={caseId || 'an_mock_default'} onBack={onBack} onOpenReview={onOpenReview} />;
 }
 
-export function App() {
+export default function App() {
   return (
     <HashRouter>
       <AppContent />
     </HashRouter>
   );
 }
-
-export default App;

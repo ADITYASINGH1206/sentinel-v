@@ -52,3 +52,7 @@ jobs:
       - name: Check No Hardcoded Metric Literals
         run: |
           python3 tools/check_no_metric_literals.py web/src services/
+
+      - name: Check Locked Files and Additive Integrity
+        run: |
+          python3 tools/check_locked_files.py
