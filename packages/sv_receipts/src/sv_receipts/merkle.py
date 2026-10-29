@@ -1,4 +1,8 @@
+import copy
 import hashlib
+from typing import Any
+
+from sv_core.jcs import canonicalize_json
 
 
 def hash_leaf(receipt_sha256_hex: str) -> bytes:
@@ -13,7 +17,7 @@ def hash_internal(left: bytes, right: bytes) -> bytes:
 
 
 class MerkleTree:
-    """Binary Merkle Tree for receipt batching conforming to SPEC §10.2."""
+    """Binary Merkle Tree for receipt batching conforming to SPEC §10.2 and RFC 6962."""
 
     def __init__(self, receipt_hashes_hex: list[str]):
         if not receipt_hashes_hex:
@@ -71,4 +75,32 @@ def verify_merkle_proof(
             current = hash_internal(sibling, current)
         else:
             current = hash_internal(current, sibling)
-    return current.hex() == expected_root_hex
+    return current.hex().lower() == expected_root_hex.lower()
+
+
+def create_merkle_batch(
+    receipts: list[dict[str, Any]], batch_id: str
+) -> tuple[MerkleTree, list[dict[str, Any]]]:
+    """Build a Merkle tree from a list of signed receipts and attach inclusion proofs."""
+    if not receipts:
+        raise ValueError("Cannot create batch from empty receipts list")
+
+    receipt_hashes: list[str] = []
+    for r in receipts:
+        canonical_bytes = canonicalize_json(r)
+        receipt_hashes.append(hashlib.sha256(canonical_bytes).hexdigest())
+
+    tree = MerkleTree(receipt_hashes)
+    batched_receipts: list[dict[str, Any]] = []
+
+    for i, r in enumerate(receipts):
+        r_copy = copy.deepcopy(r)
+        r_copy["merkle"] = {
+            "root": tree.root_hex,
+            "leaf_index": i,
+            "batch_id": batch_id,
+            "proof": tree.get_proof(i),
+        }
+        batched_receipts.append(r_copy)
+
+    return tree, batched_receipts

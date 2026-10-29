@@ -50,3 +50,11 @@ app.include_router(analyses.router, prefix="/v1/analyses", tags=["Analyses"])
 app.include_router(receipts.router, prefix="/v1/receipts", tags=["Receipts"])
 app.include_router(review.router, prefix="/v1", tags=["Reviews"])
 app.include_router(compat.router, prefix="/compat", tags=["SENTINEL Compatibility"])
+
+
+@app.get("/.well-known/sv-keys.json", tags=["Receipts"])
+async def get_well_known_keys():
+    """Distribute active public keys for client-side receipt verification."""
+    from sv_api.routes.receipts import get_server_public_keys
+
+    return get_server_public_keys()

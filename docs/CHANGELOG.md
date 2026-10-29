@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Milestone M7 (Detection Receipts & EVM Anchoring):**
+  - RFC 8785 JSON Canonicalization Scheme (JCS) and Ed25519 digital signature signing/verification in `packages/sv_receipts`.
+  - RFC 6962 compliant Merkle batching tree with domain separation prefixes (`0x00` leaf, `0x01` internal) and inclusion audit path generation.
+  - Append-only human review receipts referencing previous verdicts via `supersedes`.
+  - Immutable EVM smart contract `ReceiptAnchor.sol` and 100% coverage Foundry test suite in `ReceiptAnchor.t.sol`.
+  - FastAPI endpoints for `/.well-known/sv-keys.json` (JWKS public keys), receipt retrieval, and review receipts.
+  - Client-side zero-trust verification page `PublicVerify.tsx` running in-browser WebCrypto SHA-256 streaming, Ed25519 signature checks, and Merkle audit path validation with zero server dependencies.
 - **Milestone M5 (Reviewer Console SPA):**
   - Interactive EvidencePlayer syncing video playback with canvas heatmap overlay and bounding boxes.
   - ClipTimeline chart plotting clip anomaly probability over time with decision threshold $\tau$ and sampling windows.
@@ -50,4 +57,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reviewer console web application scaffold (React, TypeScript, Vite, Tailwind).
 - Solidity contract `ReceiptAnchor.sol` and Foundry suite for EVM anchoring.
 - Docker compose orchestration and Makefile automation.
-
