@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2026-10-29
 
 ### Added
+- **Milestone M6: Two-Stage Cost Cascade Tuning, Decision Policies & Policy Simulator**:
+  - Two-stage cascade evaluation (`packages/sv_engine/src/sv_engine/cascade.py`) with Stage 1 S-MSDT-S ($T=1$) cheap screening and early-exit cutoff ($p_1 < \text{exit\_below\_p\_bal}$), escalating ambiguous/suspicious tracks to Stage 2 S-MSDT-ST ($T=8$).
+  - Multi-track aggregation with maximum logit rule $u(V) = \max_j u_j$ and decisive track identification.
+  - Decision band mapping (`assign_decision_band`) enforcing compliant bands: `likely_authentic`, `needs_review`, `likely_manipulated`, `inconclusive`.
+  - Built-in policy presets: `strict-low-fpr` ($\pi=0.01$), `transfer-calibrated` ($\pi=0.05$), and `evidence-desk` ($\pi=0.20$).
+  - Cascade threshold optimization tool (`tools/fit_cascade.py`) sweeping validation cutoffs to maximize early exit compute savings under strict fake leakage ($\le 1\%$) and stage agreement ($\ge 99\%$) constraints.
+  - Prevalence-aware policy simulation engine (`tools/simulate_policy.py`) reproducing SPEC §7.4 benchmarks (138 flags/10k, 28.5% PPV at 1% prevalence).
+  - Policy REST API endpoints (`services/api/src/sv_api/routes/policies.py`) supporting policy listing, creation with versioning, preset retrieval, and interactive prevalence simulation.
 - **Milestone M4: Spatiotemporal Patch Evidence Maps & Video Overlay Rendering**:
   - Patch map reshaping from $(K, T, P)$ token logits to $(K, T, \text{grid}, \text{grid})$ with sigmoid non-linearity, bilinear upsampling to $224 \times 224$, and 16px reflection padding to $256 \times 256$ crop space (`reshape_patch_logits_to_map`).
   - Sub-pixel inverse affine matrix computation (`invert_affine_matrix`) and coordinate back-projection (`cv2.warpAffine`) onto original video frame dimensions with $< 0.1$ px round-trip error.
