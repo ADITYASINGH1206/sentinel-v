@@ -521,8 +521,11 @@ def main():
         print("No changes found in diff to review.")
         return
 
-    prompt = PROMPT_TEMPLATE.format(
-        pr_number=pr_number, pr_title=pr_title, pr_author=pr_author, diff_content=diff
+    prompt = (
+        PROMPT_TEMPLATE.replace("{pr_number}", str(pr_number))
+        .replace("{pr_title}", pr_title)
+        .replace("{pr_author}", pr_author)
+        .replace("{diff_content}", diff)
     )
 
     print("Sending diff to Gemini API for deep forensics and code review...")
