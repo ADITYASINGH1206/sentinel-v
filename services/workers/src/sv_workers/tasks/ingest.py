@@ -5,7 +5,8 @@ from typing import Any
 
 from sqlalchemy import select
 from sv_api.database import async_session_maker
-from sv_api.models import AnalysisModel, Media
+import json
+from sv_api.models import AnalysisModel, Media, TrackModel
 from sv_api.sse import publish_progress
 from sv_workers.celery_app import celery_app
 from sv_workers.tasks.utils import run_async
@@ -38,6 +39,15 @@ async def _async_ingest(
         if not analysis:
             return {"error": "Analysis not found", "status": "failed"}
 
+        # Check skip_cache option
+        skip_cache = False
+        if analysis.signals:
+            try:
+                sig_obj = json.loads(analysis.signals)
+                skip_cache = bool(sig_obj.get("skip_cache", False))
+            except Exception:
+                pass
+
         # 2. 30-Day Deduplication Check
         now = datetime.now(UTC).replace(tzinfo=None)
         thirty_days_ago = now - timedelta(days=30)
@@ -57,7 +67,7 @@ async def _async_ingest(
         dedupe_res = await session.execute(dedupe_stmt)
         cached_analysis = dedupe_res.scalars().first()
 
-        if cached_analysis:
+        if not skip_cache and cached_analysis:
             # SPEC §2.1: Cache hit returns existing completed analysis directly
             analysis.status = "completed"
             analysis.decision = cached_analysis.decision
@@ -68,6 +78,34 @@ async def _async_ingest(
             analysis.media_id = cached_analysis.media_id
             analysis.cache_hit = True
             analysis.completed_at = now
+
+            # Clone track records from cached analysis to maintain complete case view
+            trk_stmt = select(TrackModel).where(TrackModel.analysis_id == cached_analysis.id)
+            trk_res = await session.execute(trk_stmt)
+            old_tracks = trk_res.scalars().all()
+            if not old_tracks and cached_analysis.media_id:
+                anc_stmt = (
+                    select(TrackModel)
+                    .join(AnalysisModel, TrackModel.analysis_id == AnalysisModel.id)
+                    .where(AnalysisModel.media_id == cached_analysis.media_id)
+                )
+                anc_res = await session.execute(anc_stmt)
+                old_tracks = anc_res.scalars().all()
+
+            for old_trk in old_tracks:
+                new_trk = TrackModel(
+                    id=f"trk_{analysis_id}_{old_trk.track_idx}",
+                    analysis_id=analysis_id,
+                    track_idx=old_trk.track_idx,
+                    n_frames=old_trk.n_frames,
+                    u=old_trk.u,
+                    p_bal=old_trk.p_bal,
+                    decisive=old_trk.decisive,
+                    clips=old_trk.clips,
+                    box=old_trk.box,
+                )
+                session.add(new_trk)
+
             await session.commit()
             await publish_progress(
                 analysis_id,
@@ -104,14 +142,16 @@ async def _async_ingest(
         await publish_progress(analysis_id, "ingest", 25, "Media validated and indexed")
 
     # 4. Trigger Preprocessing Task
-    from sv_workers.tasks.preprocess import run_preprocess
-
     if celery_app.conf.task_always_eager:
-        return run_preprocess.delay(analysis_id, media_path)
+        from sv_workers.tasks.preprocess import _async_preprocess
+        return await _async_preprocess(analysis_id, media_path)
+    
+    from sv_workers.tasks.preprocess import run_preprocess
     try:
         return run_preprocess.delay(analysis_id, media_path)
     except Exception:
-        return run_preprocess(analysis_id, media_path)
+        from sv_workers.tasks.preprocess import _async_preprocess
+        return await _async_preprocess(analysis_id, media_path)
 
 
 @celery_app.task(name="sv_workers.tasks.ingest.run_ingest")

@@ -44,18 +44,33 @@ contracts/cache/
 # Storage & Temporary
 storage/
 tmp/
+data/
 *.tmp
 *.log
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 *.sqlite
 *.sqlite3
 .DS_Store
 
 # Models & Weights (large binaries)
-models/bundle-*/weights.safetensors
-models/bundle-*/weights.pt
-models/bundle-*/*.pt
+models/weight/
+models/**/*.safetensors
+models/**/*.pt
+models/**/*.pth
+models/**/*.bin
+models/**/*.onnx
+models/bundle-*/**/weights.safetensors
+models/bundle-*/**/weights.pt
+models/bundle-*/**/*.pt
 models/aux/**/*.onnx
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.onnx
 
 # Evaluation datasets
 eval/data/
@@ -70,4 +85,3 @@ eval/results/*.svg
 *.key
 secrets/
 run/secrets/
-

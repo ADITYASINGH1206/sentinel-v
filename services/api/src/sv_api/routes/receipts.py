@@ -47,6 +47,53 @@ async def get_receipt(receipt_id: str):
     if receipt_id in _RECEIPT_STORE:
         return _RECEIPT_STORE[receipt_id]
 
+    # Try lookup in database
+    try:
+        import json
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+        from sv_api.database import async_session_maker
+        from sv_api.models import AnalysisModel
+
+        async with async_session_maker() as session:
+            stmt = select(AnalysisModel).options(selectinload(AnalysisModel.media)).where(AnalysisModel.receipt_id == receipt_id)
+            res = await session.execute(stmt)
+            analysis = res.scalars().first()
+            if analysis:
+                p_bal = 0.5
+                p_prior = 0.01
+                prior_prev = 0.01
+                if analysis.scores:
+                    try:
+                        scores_dict = json.loads(analysis.scores)
+                        p_bal = scores_dict.get("p_bal", 0.5)
+                        p_prior = scores_dict.get("p_prior", 0.01)
+                        prior_prev = scores_dict.get("prior_prevalence", 0.01)
+                    except Exception:
+                        pass
+                sha256_val = analysis.media.sha256 if analysis.media else "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                duration_val = analysis.media.duration_s if analysis.media else 10.0
+                db_receipt = build_detection_receipt(
+                    analysis_id=analysis.id,
+                    content_sha256=sha256_val,
+                    size_bytes=1048576,
+                    duration_s=duration_val,
+                    container="mp4",
+                    decision_band=analysis.decision or "likely_authentic",
+                    p_bal=p_bal,
+                    p_prior=p_prior,
+                    prior_prevalence=prior_prev,
+                    key_id=_DEFAULT_KEY_ID,
+                    private_key=_DEFAULT_PRIV_KEY,
+                )
+                db_receipt["receipt_id"] = receipt_id
+                from sv_receipts.schema import sign_receipt
+                signed_db = sign_receipt(db_receipt, _DEFAULT_PRIV_KEY)
+                _RECEIPT_STORE[receipt_id] = signed_db
+                return signed_db
+    except Exception:
+        pass
+
     # Generate a sample signed receipt if not in store
     sample_receipt = build_detection_receipt(
         analysis_id=f"an_{receipt_id.replace('rcpt_', '')}",

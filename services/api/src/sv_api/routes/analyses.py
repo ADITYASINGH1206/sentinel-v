@@ -4,8 +4,8 @@ import tempfile
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.responses import HTMLResponse, Response, StreamingResponse
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,10 +32,14 @@ router = APIRouter()
 @router.post("", response_model=dict, status_code=status.HTTP_202_ACCEPTED)
 async def create_analysis(
     request: Request,
+    background_tasks: BackgroundTasks,
     req: AnalysisCreate | None = Body(None),
     file: UploadFile | None = File(None),
     policy_id: str | None = Form(None),
     source_url: str | None = Form(None),
+    explain_gradcam: bool = Form(False),
+    skip_cache: bool = Form(False),
+    external_ref: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Submit a video for calibrated deepfake screening (multipart upload or URL)."""
@@ -80,31 +84,118 @@ async def create_analysis(
             f.write(b"SENTINEL_V_MOCK_PAYLOAD_" + analysis_id.encode("utf-8"))
 
     # Create Analysis record in DB
+    ref_val = external_ref or (req.external_ref if req else None) or ("upload" if file else "api")
+    signals_dict = {
+        "explain_gradcam": bool(explain_gradcam or (req.explain_gradcam if req else False)),
+        "skip_cache": bool(skip_cache or (req.skip_cache if req else False)),
+    }
     analysis_model = AnalysisModel(
         id=analysis_id,
         status=AnalysisStatus.QUEUED.value,
         policy_id=chosen_policy,
         policy_version=3,
         model_bundle_id=settings.MODEL_BUNDLE,
-        external_ref=req.external_ref if req else None,
+        external_ref=ref_val,
         webhook_url=req.webhook_url if req else None,
+        signals=json.dumps(signals_dict),
         created_at=datetime.now(UTC).replace(tzinfo=None),
     )
     db.add(analysis_model)
     await db.commit()
 
-    # Trigger worker ingest pipeline
+    # Trigger worker ingest pipeline via FastAPI BackgroundTasks
     from sv_workers.celery_app import celery_app
 
     if celery_app.conf.task_always_eager:
-        run_ingest.delay(analysis_id, temp_path, target_url)
+        from sv_workers.tasks.ingest import _async_ingest
+        background_tasks.add_task(_async_ingest, analysis_id, temp_path, target_url)
     else:
         try:
             run_ingest.delay(analysis_id, temp_path, target_url)
         except Exception:
-            run_ingest(analysis_id, temp_path, target_url)
+            from sv_workers.tasks.ingest import _async_ingest
+            background_tasks.add_task(_async_ingest, analysis_id, temp_path, target_url)
 
     return {"analysis_id": analysis_id, "status": AnalysisStatus.QUEUED.value}
+
+
+@router.get("", response_model=dict)
+@router.get("/", response_model=dict)
+async def list_analyses(
+    limit: int = 100,
+    offset: int = 0,
+    status: str | None = None,
+    policy_id: str | None = None,
+    decision: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """List screening analyses ordered chronologically with calibrated scores and summary metadata."""
+    from sqlalchemy import desc, func
+
+    stmt = (
+        select(AnalysisModel)
+        .options(selectinload(AnalysisModel.media), selectinload(AnalysisModel.tracks))
+        .order_by(desc(AnalysisModel.created_at))
+    )
+
+    if status:
+        stmt = stmt.where(AnalysisModel.status == status)
+    if policy_id:
+        stmt = stmt.where(AnalysisModel.policy_id == policy_id)
+    if decision:
+        stmt = stmt.where(AnalysisModel.decision == decision)
+
+    # Count query
+    count_stmt = select(func.count(AnalysisModel.id))
+    if status:
+        count_stmt = count_stmt.where(AnalysisModel.status == status)
+    if policy_id:
+        count_stmt = count_stmt.where(AnalysisModel.policy_id == policy_id)
+    if decision:
+        count_stmt = count_stmt.where(AnalysisModel.decision == decision)
+
+    total_res = await db.execute(count_stmt)
+    total_count = total_res.scalar() or 0
+
+    stmt = stmt.offset(offset).limit(limit)
+    res = await db.execute(stmt)
+    models = res.scalars().all()
+
+    items = []
+    for m in models:
+        p_bal = None
+        if m.scores:
+            try:
+                scores_data = json.loads(m.scores)
+                p_bal = scores_data.get("p_bal")
+            except Exception:
+                pass
+
+        duration_s = m.media.duration_s if m.media else None
+        faces_count = len(m.tracks) if m.tracks else 0
+        source_val = m.external_ref if m.external_ref in ("upload", "api", "sentinel") else "upload"
+
+        items.append(
+            {
+                "id": m.id,
+                "status": m.status,
+                "decision": m.decision,
+                "p_bal": p_bal,
+                "created_at": (
+                    m.created_at.isoformat() + "Z"
+                    if m.created_at
+                    else datetime.now(UTC).isoformat()
+                ),
+                "duration_s": duration_s,
+                "faces": faces_count,
+                "source": source_val,
+                "review_status": m.review_status,
+                "policy_id": m.policy_id,
+                "policy": {"id": m.policy_id, "version": m.policy_version},
+            }
+        )
+
+    return {"items": items, "total": total_count}
 
 
 @router.get("/{analysis_id}", response_model=Analysis)
@@ -149,6 +240,13 @@ async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
             except Exception:
                 pass
 
+        box_data = None
+        if getattr(trk, "box", None):
+            try:
+                box_data = json.loads(trk.box)
+            except Exception:
+                pass
+
         track_results.append(
             TrackResult(
                 track_idx=trk.track_idx,
@@ -157,6 +255,7 @@ async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
                 p_bal=trk.p_bal,
                 decisive=trk.decisive,
                 clips=clips_list,
+                box=box_data,
             )
         )
 
@@ -187,6 +286,7 @@ async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
         id=model.id,
         status=AnalysisStatus(model.status),
         media=media_info,
+        video_url=f"/v1/analyses/{model.id}/video",
         policy={"id": model.policy_id, "version": model.policy_version},
         decision=decision_enum,
         inconclusive_reason=model.inconclusive_reason,
@@ -200,6 +300,23 @@ async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
         completed_at=model.completed_at,
         mock=(settings.ENGINE_MODE == "mock"),
     )
+
+
+@router.get("/{analysis_id}/video")
+async def get_analysis_video(analysis_id: str):
+    """Stream or serve uploaded/processed video for browser playback in Reviewer Console."""
+    temp_dir = tempfile.gettempdir()
+    web_path = os.path.join(temp_dir, f"{analysis_id}_web.mp4")
+    if os.path.isfile(web_path):
+        return FileResponse(web_path, media_type="video/mp4")
+
+    media_path = os.path.join(temp_dir, f"{analysis_id}.mp4")
+    if os.path.isfile(media_path):
+        from sv_engine.preprocess.decode import transcode_to_h264_web
+        playable_path = transcode_to_h264_web(media_path, web_path)
+        return FileResponse(playable_path, media_type="video/mp4")
+
+    raise HTTPException(status_code=404, detail="Video file not found")
 
 
 @router.get("/{analysis_id}/events")
@@ -231,6 +348,43 @@ async def get_analysis_evidence(analysis_id: str, db: AsyncSession = Depends(get
         "overlay_url": f"/v1/analyses/{analysis_id}/evidence/overlay.mp4",
         "webp_frames_url": f"/v1/analyses/{analysis_id}/evidence/frames/",
     }
+
+
+@router.get("/{analysis_id}/evidence/overlay.mp4")
+async def get_analysis_evidence_overlay(analysis_id: str):
+    """Stream rendered patch-evidence overlay MP4 with burnt-in scores and disclaimers."""
+    overlay_path = os.path.join(
+        tempfile.gettempdir(), "sv_evidence", analysis_id, "track_0", "overlay_track_0.mp4"
+    )
+    if os.path.isfile(overlay_path):
+        return FileResponse(overlay_path, media_type="video/mp4")
+    # Fallback to source video if overlay was not generated
+    media_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.mp4")
+    if os.path.isfile(media_path):
+        return FileResponse(media_path, media_type="video/mp4")
+    raise HTTPException(status_code=404, detail="Evidence overlay video not found")
+
+
+@router.get("/{analysis_id}/evidence/manifest.json")
+async def get_analysis_evidence_manifest(analysis_id: str):
+    """Retrieve cryptographic manifest of patch evidence artifacts."""
+    manifest_path = os.path.join(
+        tempfile.gettempdir(), "sv_evidence", analysis_id, "track_0", "evidence_manifest.json"
+    )
+    if os.path.isfile(manifest_path):
+        return FileResponse(manifest_path, media_type="application/json")
+    return {"analysis_id": analysis_id, "track_idx": 0, "manifest": {}, "evidence_root": "0" * 64}
+
+
+@router.get("/{analysis_id}/evidence/frames/{frame_name}")
+async def get_analysis_evidence_frame(analysis_id: str, frame_name: str):
+    """Serve individual WebP patch-evidence frame image."""
+    frame_path = os.path.join(
+        tempfile.gettempdir(), "sv_evidence", analysis_id, "track_0", "frames", frame_name
+    )
+    if os.path.isfile(frame_path):
+        return FileResponse(frame_path, media_type="image/webp")
+    raise HTTPException(status_code=404, detail="Evidence frame not found")
 
 
 @router.get("/{analysis_id}/report.pdf")

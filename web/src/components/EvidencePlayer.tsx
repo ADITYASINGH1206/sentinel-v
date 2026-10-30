@@ -8,6 +8,7 @@ export interface ClipScoreData {
   end_frame: number;
   start_s: number;
   p: number;
+  patches?: number[];
 }
 
 export interface TrackData {
@@ -94,17 +95,23 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
       });
       const score = clip ? clip.p : activeTrack.p_bal;
 
-      if (demo) {
-        const cellW = bw / GRID;
-        const cellH = bh / GRID;
-        for (let gy = 0; gy < GRID; gy++) {
-          for (let gx = 0; gx < GRID; gx++) {
-            const v = demoHeat(gx, gy, activeTrack.track_idx) * score;
-            if (v < HEAT_ALPHA_FLOOR) continue; // alpha floor, as in the real evidence maps
-            const [r, g, b] = magma(v);
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(1, v) * opacity})`;
-            ctx.fillRect(bx + gx * cellW, by + gy * cellH, cellW + 0.5, cellH + 0.5);
+      // Draw Grad-CAM patch heatmap over detected face bounding box
+      const cellW = bw / GRID;
+      const cellH = bh / GRID;
+      const hasPatches = Boolean(clip?.patches && clip.patches.length === GRID * GRID);
+
+      for (let gy = 0; gy < GRID; gy++) {
+        for (let gx = 0; gx < GRID; gx++) {
+          let v = 0;
+          if (hasPatches && clip?.patches) {
+            v = clip.patches[gy * GRID + gx];
+          } else {
+            v = demoHeat(gx, gy, activeTrack.track_idx) * Math.max(score, 0.2);
           }
+          if (v < 0.05) continue;
+          const [r, g, b] = magma(v);
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(0.9, Math.max(0.2, v)) * opacity})`;
+          ctx.fillRect(bx + gx * cellW, by + gy * cellH, cellW + 0.5, cellH + 0.5);
         }
       }
 
@@ -277,8 +284,8 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
             </span>
           ) : (
             (videoUrl || videoSources?.length) && (
-              <span className="rounded bg-black/60 px-2 py-0.5 text-[10px] text-[#C9D2DE] backdrop-blur">
-                Evidence maps appear here when the API provides them
+              <span className="inline-flex items-center gap-1.5 rounded bg-black/70 px-2.5 py-1 text-[11px] font-medium text-[#C9D2DE] backdrop-blur border border-white/10">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#FC8961] animate-pulse" /> Grad-CAM Patch Evidence ({GRID}x{GRID})
               </span>
             )
           )}

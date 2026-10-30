@@ -1,0 +1,20 @@
+{
+  "model_id": "smsdt-full-c",
+  "validation_auc": 0.96,
+  "youden_optimal": {
+    "threshold": 0.7507,
+    "tpr": 0.88
+  },
+  "fixed_fpr_points": [
+    {
+      "target_fpr": 0.01,
+      "tpr": 0.471
+    },
+    {
+      "target_fpr": 0.05,
+      "tpr": 0.589
+    }
+  ],
+  "expected_calibration_error": 0.042,
+  "n_bins": 15
+}

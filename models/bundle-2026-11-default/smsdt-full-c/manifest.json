@@ -1,0 +1,11 @@
+{
+  "bundle_id": "bundle-2026-11-default",
+  "variant": "full",
+  "variant_id": "smsdt-full-c",
+  "architecture": "S-MSDTv3",
+  "created_at": "2026-10-30T16:03:16.642841+00:00Z",
+  "git_commit": "593890ea6282335f9694b4d9d44d2a56b2c1f5cf",
+  "weights_format": "safetensors",
+  "weights_sha256": "c152afe8e42fa1b35d26011d9b30426dc12bc15d645620f2ba2a0de8b0365198",
+  "calibration_sha256": "af4e6b4e8901378393333a278db4d4e2eb8e8dca90a55068c2f8cbe2e9010f9b"
+}

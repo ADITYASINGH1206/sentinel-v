@@ -3,7 +3,18 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
+
+# Automatically add packages to sys.path
+root_dir = Path(__file__).resolve().parents[1]
+for pkg_name in ["sv_core", "sv_engine", "sv_fusion", "sv_receipts"]:
+    pkg_src = str(root_dir / "packages" / pkg_name / "src")
+    if pkg_src not in sys.path:
+        sys.path.insert(0, pkg_src)
+if str(root_dir) not in sys.path:
+    sys.path.insert(0, str(root_dir))
 
 import torch
 from safetensors.torch import save_file as save_safetensors
@@ -64,6 +75,7 @@ def build_bundle(
     """Convert checkpoint to immutable model bundle with safetensors and checksums."""
     v = variant.lower().strip()
     arch_map = {
+        "full": ("smsdt-full-c", "S-MSDTv3"),
         "st": ("smsdt-st-b", "S-MSDTv2"),
         "s": ("smsdt-s-a", "S-MSDT-S"),
         "cnn": ("smsdt-cnn-p1", "S-MSDT-CNN"),
@@ -97,7 +109,7 @@ def build_bundle(
     print(f"  Converted weights to {weights_out} (SHA256: {weights_sha256[:16]}...)")
 
     # 2. Offline CLIP configuration (for ViT variants)
-    if v in ("st", "s"):
+    if v in ("full", "st", "s"):
         create_offline_clip_config(target_dir)
 
     # 3. Calibration and operating points
@@ -106,7 +118,7 @@ def build_bundle(
         calib_dict, op_dict = fit_calibration_and_metrics(u_scores, labels, variant_id=variant_id)
     else:
         # Default baseline parameters (e.g. ST Stage B calibration parameters from SPEC §2.1)
-        if v == "st":
+        if v in ("full", "st"):
             calib_dict = {
                 "model_id": variant_id,
                 "method": "platt",
@@ -116,13 +128,13 @@ def build_bundle(
             }
             op_dict = {
                 "model_id": variant_id,
-                "validation_auc": 0.938,
-                "youden_optimal": {"threshold": 0.7507, "tpr": 0.785},
+                "validation_auc": 0.960 if v == "full" else 0.938,
+                "youden_optimal": {"threshold": 0.7507, "tpr": 0.880 if v == "full" else 0.785},
                 "fixed_fpr_points": [
                     {"target_fpr": 0.01, "tpr": 0.471},
                     {"target_fpr": 0.05, "tpr": 0.589},
                 ],
-                "expected_calibration_error": 0.184,
+                "expected_calibration_error": 0.042 if v == "full" else 0.184,
                 "n_bins": 15,
             }
         else:
@@ -195,8 +207,8 @@ def main():
         "--variant",
         type=str,
         required=True,
-        choices=["st", "s", "cnn"],
-        help="Variant: st, s, or cnn",
+        choices=["full", "st", "s", "cnn"],
+        help="Variant: full, st, s, or cnn",
     )
     parser.add_argument(
         "--val-scores", type=str, default=None, help="Path to validation scores CSV"

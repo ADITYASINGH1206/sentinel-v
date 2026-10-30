@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import os
 import av
 import cv2
 import numpy as np
@@ -213,3 +214,40 @@ def decode_video(
     )
 
     return metadata, decoded_frames
+
+
+def transcode_to_h264_web(input_path: str, output_path: str) -> str:
+    """Ensure video is encoded in browser-playable H.264 (yuv420p) with FastStart."""
+    if os.path.exists(output_path):
+        return output_path
+    try:
+        inp = av.open(input_path)
+        if not inp.streams.video:
+            inp.close()
+            return input_path
+        in_s = inp.streams.video[0]
+        if in_s.name in ("h264", "avc1") and in_s.pix_fmt in ("yuv420p", "yuvj420p"):
+            inp.close()
+            return input_path
+
+        rate = in_s.average_rate if in_s.average_rate else 30
+        out = av.open(output_path, mode="w", format="mp4")
+        out_s = out.add_stream("libx264", rate=rate)
+        out_s.width = in_s.codec_context.width
+        out_s.height = in_s.codec_context.height
+        out_s.pix_fmt = "yuv420p"
+        out_s.options = {"crf": "23", "preset": "veryfast"}
+
+        for frame in inp.decode(in_s):
+            for packet in out_s.encode(frame):
+                out.mux(packet)
+        for packet in out_s.encode():
+            out.mux(packet)
+
+        out.close()
+        inp.close()
+        return output_path
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("transcode_to_h264_web failed for %s: %s", input_path, exc)
+        return input_path

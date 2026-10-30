@@ -1,7 +1,7 @@
 id: bundle-2026-11-default
-created_at: "2026-10-28T21:00:00Z"
+created_at: "2026-10-30T21:00:00Z"
 stage1_model: smsdt-s-a
-stage2_model: smsdt-st-b
+stage2_model: smsdt-full-c
 cascade:
   enabled: true
   exit_below_p_bal: 0.12
@@ -9,4 +9,3 @@ cascade:
 default_policy: strict-low-fpr
 k_clips: 8
 t_frames: 8
-

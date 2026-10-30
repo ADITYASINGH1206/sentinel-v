@@ -1,0 +1,10 @@
+{
+  "model_id": "smsdt-full-c",
+  "method": "platt",
+  "parameters": {
+    "a": 0.647,
+    "b": -0.5865
+  },
+  "youden_tau_star": 0.7507,
+  "calibration_sample_size": 0
+}

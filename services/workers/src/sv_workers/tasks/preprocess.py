@@ -58,14 +58,15 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> dict[str, Any]
             60,
             f"Media decoding failed safely: {exc}",
         )
-        from sv_workers.tasks.finalize import run_finalize
-
         if celery_app.conf.task_always_eager:
-            return run_finalize.delay(analysis_id, inconclusive=True)
+            from sv_workers.tasks.finalize import _async_finalize
+            return await _async_finalize(analysis_id, inconclusive=True)
+        from sv_workers.tasks.finalize import run_finalize
         try:
             return run_finalize.delay(analysis_id, inconclusive=True)
         except Exception:
-            return run_finalize(analysis_id, inconclusive=True)
+            from sv_workers.tasks.finalize import _async_finalize
+            return await _async_finalize(analysis_id, inconclusive=True)
 
     async with async_session_maker() as session:
         stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
@@ -99,14 +100,15 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> dict[str, Any]
                 60,
                 f"Inconclusive criteria met: {prep_res.inconclusive_reason.value}",
             )
-            from sv_workers.tasks.finalize import run_finalize
-
             if celery_app.conf.task_always_eager:
-                return run_finalize.delay(analysis_id, inconclusive=True)
+                from sv_workers.tasks.finalize import _async_finalize
+                return await _async_finalize(analysis_id, inconclusive=True)
+            from sv_workers.tasks.finalize import run_finalize
             try:
                 return run_finalize.delay(analysis_id, inconclusive=True)
             except Exception:
-                return run_finalize(analysis_id, inconclusive=True)
+                from sv_workers.tasks.finalize import _async_finalize
+                return await _async_finalize(analysis_id, inconclusive=True)
 
         await session.commit()
         await publish_progress(
@@ -123,14 +125,15 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> dict[str, Any]
     save_tracks_npz(prep_res.tracks, npz_path)
 
     # Proceed to GPU inference cascade
-    from sv_workers.tasks.gpu import run_gpu
-
     if celery_app.conf.task_always_eager:
-        return run_gpu.delay(analysis_id, npz_path)
+        from sv_workers.tasks.gpu import _async_gpu
+        return await _async_gpu(analysis_id, npz_path)
+    from sv_workers.tasks.gpu import run_gpu
     try:
         return run_gpu.delay(analysis_id, npz_path)
     except Exception:
-        return run_gpu(analysis_id, npz_path)
+        from sv_workers.tasks.gpu import _async_gpu
+        return await _async_gpu(analysis_id, npz_path)
 
 
 @celery_app.task(name="sv_workers.tasks.preprocess.run_preprocess")

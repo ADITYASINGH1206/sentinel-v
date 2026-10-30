@@ -9,7 +9,16 @@ Base = declarative_base()
 
 
 def get_database_url() -> str:
-    url = os.environ.get("SV_DATABASE_URL", settings.DATABASE_URL)
+    url = os.environ.get("SV_DATABASE_URL")
+    if not url:
+        if settings.DATABASE_URL.startswith("postgresql"):
+            try:
+                import asyncpg  # noqa: F401
+                url = settings.DATABASE_URL
+            except ImportError:
+                url = "sqlite+aiosqlite:///test_dev.db"
+        else:
+            url = settings.DATABASE_URL
     if os.environ.get("SV_TESTING") == "1" and not url.startswith("sqlite"):
         url = "sqlite+aiosqlite:///./test_dev.db"
     return url
@@ -35,3 +44,8 @@ async def init_db() -> None:
     """Create all database tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        from sqlalchemy import text
+        try:
+            await conn.execute(text('ALTER TABLE tracks ADD COLUMN box TEXT'))
+        except Exception:
+            pass

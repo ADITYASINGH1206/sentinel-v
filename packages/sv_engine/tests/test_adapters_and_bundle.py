@@ -55,9 +55,10 @@ def test_adapter_factory_and_variants():
 
     full_adapter = get_adapter("full")
     assert isinstance(full_adapter, FullCAdapter)
-    with pytest.raises(NotImplementedError) as exc_info:
-        full_adapter.load("dummy_dir")
-    assert "Blocker B1" in str(exc_info.value)
+    assert full_adapter.T == 8
+    assert full_adapter.grid == 16
+    with pytest.raises(FileNotFoundError):
+        full_adapter.load("dummy_non_existent_dir")
 
     with pytest.raises(ValueError):
         get_adapter("invalid_variant_name")

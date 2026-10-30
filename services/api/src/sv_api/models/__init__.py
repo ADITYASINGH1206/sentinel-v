@@ -110,6 +110,7 @@ class TrackModel(Base):
     p_bal = Column(Float, nullable=False)
     decisive = Column(Boolean, default=False, nullable=False)
     clips = Column(Text, nullable=True)  # JSON-serialized clip scores
+    box = Column(Text, nullable=True)  # JSON-serialized normalized bounding box {x, y, w, h}
 
     analysis = relationship("AnalysisModel", back_populates="tracks")
 

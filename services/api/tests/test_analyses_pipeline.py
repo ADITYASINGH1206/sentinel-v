@@ -176,3 +176,84 @@ def test_sse_stream_endpoint(client):
     with client.stream("GET", "/v1/analyses/an_mock_stream/events") as resp:
         assert resp.status_code == 200
         assert "text/event-stream" in resp.headers["content-type"]
+
+
+def test_list_analyses_endpoint(client, test_video_bytes):
+    # Submit analysis
+    files = {"file": ("list_test.mp4", test_video_bytes, "video/mp4")}
+    resp = client.post("/v1/analyses", files=files, data={"policy_id": "pol_strict_v3", "external_ref": "upload"})
+    assert resp.status_code == 202
+    analysis_id = resp.json()["analysis_id"]
+
+    # Call GET /v1/analyses
+    list_resp = client.get("/v1/analyses?limit=10")
+    assert list_resp.status_code == 200
+    list_data = list_resp.json()
+    assert "items" in list_data
+    assert "total" in list_data
+    assert list_data["total"] >= 1
+
+    first = next(item for item in list_data["items"] if item["id"] == analysis_id)
+    assert first["id"] == analysis_id
+    assert first["status"] == "completed"
+    assert first["source"] == "upload"
+    assert "decision" in first
+    assert "faces" in first
+
+
+def test_track_bounding_box_and_evidence(client, test_video_bytes):
+    files = {"file": ("bbox_test.mp4", test_video_bytes, "video/mp4")}
+    resp = client.post("/v1/analyses", files=files, data={"policy_id": "pol_strict_v3", "explain_gradcam": "true"})
+    assert resp.status_code == 202
+    analysis_id = resp.json()["analysis_id"]
+
+    get_resp = client.get(f"/v1/analyses/{analysis_id}")
+    assert get_resp.status_code == 200
+    data = get_resp.json()
+    tracks = data.get("tracks", [])
+    if tracks:
+        for t in tracks:
+            assert "box" in t
+            if t["box"]:
+                assert 0.0 <= t["box"]["x"] <= 1.0
+                assert 0.0 <= t["box"]["y"] <= 1.0
+                assert 0.0 <= t["box"]["w"] <= 1.0
+                assert 0.0 <= t["box"]["h"] <= 1.0
+
+    # Evidence overlay route
+    ov_resp = client.get(f"/v1/analyses/{analysis_id}/evidence/overlay.mp4")
+    assert ov_resp.status_code in (200, 404)
+
+
+def test_review_queue_and_submission(client, test_video_bytes):
+    # Submit video
+    files = {"file": ("review_test.mp4", test_video_bytes, "video/mp4")}
+    resp = client.post("/v1/analyses", files=files)
+    analysis_id = resp.json()["analysis_id"]
+
+    # Manually check review queue
+    q_resp = client.get("/v1/review-queue")
+    assert q_resp.status_code == 200
+    q_data = q_resp.json()
+    assert "items" in q_data
+    assert "total" in q_data
+
+    # Submit review
+    review_payload = {
+        "decision": "manipulated",
+        "reasons": ["blending_seam"],
+        "notes": "Verified manipulation seam on face border",
+        "confidence": 4,
+        "telemetry": {"triage_ms": 1250},
+    }
+    rev_resp = client.post(f"/v1/reviews/{analysis_id}", json=review_payload)
+    assert rev_resp.status_code == 200
+    rev_data = rev_resp.json()
+    assert "review_id" in rev_data
+    assert rev_data["status"] == "recorded"
+    assert "receipt" in rev_data
+
+    # Verify analysis is marked as reviewed in DB
+    get_resp = client.get(f"/v1/analyses/{analysis_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["review_status"] == "reviewed"

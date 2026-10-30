@@ -90,6 +90,9 @@ const Analyze: React.FC = () => {
         const form = new FormData();
         form.append('file', file);
         form.append('policy_id', policy);
+        form.append('explain_gradcam', gradcam ? 'true' : 'false');
+        form.append('skip_cache', skipCache ? 'true' : 'false');
+        form.append('external_ref', externalRef || 'upload');
         setProgress(0);
         const job = uploadAnalysis(form, setProgress);
         abortRef.current = job.abort;
@@ -324,7 +327,7 @@ const Analyze: React.FC = () => {
                 <span className="mb-1.5 block text-xs font-medium text-muted">External reference (optional)</span>
                 <input value={externalRef} onChange={(e) => setExternalRef(e.target.value)} placeholder="post id or case number" className="h-9 w-full rounded-md border border-border bg-bg px-3 text-text placeholder:text-muted focus:border-accent focus:outline-none" />
               </label>
-              {mode === 'file' && <p className="text-xs text-muted">The current API applies only the policy to file uploads; the other options are sent with URL submissions.</p>}
+              {mode === 'file' && <p className="text-xs text-muted">Screening policy, Grad-CAM deep explanation, and case reference are applied to file uploads.</p>}
             </div>
           </Card>
           <Disclaimer className="px-1" />

@@ -40,6 +40,7 @@ class ClipScore(BaseModel):
     end_frame: int
     start_s: float
     p: float
+    patches: list[float] | None = None
 
 
 class TrackResult(BaseModel):
@@ -49,6 +50,7 @@ class TrackResult(BaseModel):
     p_bal: float
     decisive: bool
     clips: list[ClipScore] = Field(default_factory=list)
+    box: dict[str, float] | None = None
 
 
 class CascadeInfo(BaseModel):
@@ -81,6 +83,7 @@ class Analysis(BaseModel):
     id: str
     status: AnalysisStatus
     media: MediaInfo | None = None
+    video_url: str | None = None
     policy: dict[str, Any]
     decision: DecisionBand | None = None
     inconclusive_reason: InconclusiveReason | None = None
@@ -107,7 +110,10 @@ class AnalysisSummary(BaseModel):
     p_bal: float | None = None
     created_at: datetime
     duration_s: float | None = None
+    faces: int = 0
     source: str = "api"
+    review_status: str = "not_required"
+    policy_id: str = "—"
 
 
 class ReviewCreate(BaseModel):

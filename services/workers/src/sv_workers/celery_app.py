@@ -27,7 +27,12 @@ celery_app.conf.update(
     },
 )
 
-if os.environ.get("SV_TESTING") == "1" or getattr(settings, "SV_TESTING", False):
+# Enable eager execution in local dev/testing unless explicitly configured with external workers
+if (
+    os.environ.get("SV_TESTING") == "1"
+    or os.environ.get("SV_CELERY_EAGER", "1") == "1"
+    or getattr(settings, "SV_TESTING", False)
+):
     celery_app.conf.update(
         task_always_eager=True,
         task_eager_propagates=True,

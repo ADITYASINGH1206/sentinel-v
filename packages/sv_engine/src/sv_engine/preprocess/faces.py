@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -12,7 +13,7 @@ class FaceDetection:
 
 
 class FaceDetector:
-    """Wrapper around InsightFace SCRFD (buffalo_l) detector with 106-point landmarks."""
+    """Wrapper around InsightFace SCRFD (buffalo_l / buffalo_sc) detector."""
 
     def __init__(self, ctx_id: int = -1, det_size: tuple[int, int] = (320, 320)):
         self.ctx_id = ctx_id
@@ -48,9 +49,18 @@ class FaceDetector:
             )
             ctx = self.ctx_id if has_cuda else -1
 
+            home = Path.home()
+            buffalo_l_dir = home / ".insightface" / "models" / "buffalo_l"
+            if buffalo_l_dir.is_dir():
+                model_name = "buffalo_l"
+                allowed = ["detection", "landmark_2d_106"]
+            else:
+                model_name = "buffalo_sc"
+                allowed = ["detection"]
+
             self._app = FaceAnalysis(
-                name="buffalo_l",
-                allowed_modules=["detection", "landmark_2d_106"],
+                name=model_name,
+                allowed_modules=allowed,
                 providers=providers,
             )
             self._app.prepare(ctx_id=ctx, det_size=self.det_size)

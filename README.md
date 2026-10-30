@@ -86,45 +86,125 @@ VeriFrame is a video deepfake screening platform and reviewer console built on t
 ## Quick Start
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 20+
-- Docker & Docker Compose
-- NVIDIA GPU with CUDA 12.8 (optional; mock mode runs CPU-only)
+- **Python 3.11+**
+- **Node.js 20+**
+- *(Optional)* NVIDIA GPU with CUDA 12.x (real inference works on both CPU and CUDA)
+- *(Optional)* Docker & Docker Compose
 
-### Development (Mock Engine Mode)
+---
+
+### Local Development (Native Python & React)
+
+This is the recommended workflow for local development, active testing, and running real S-MSDT deepfake screening.
+
+#### 1. Backend Setup
+
+Install the monorepo packages in editable mode:
 
 ```bash
-# Clone and enter repository
-git clone https://github.com/ADITYASINGH1206/veriframe.git
-cd sentinel-v
+# From repository root
+pip install -e packages/sv_core -e packages/sv_engine -e packages/sv_fusion -e packages/sv_receipts -e services/api -e services/workers
+```
 
+Ensure model weights are in place:
+- The default model bundle directory is: `models/bundle-2026-11-default/smsdt-full-c/`.
+- Ensure `weights.safetensors` is located in this directory.
+- If you have an upstream PyTorch checkpoint (e.g., `best_ema.pt`), convert it to the standard bundle layout with:
+  ```bash
+  python tools/make_bundle.py --weights path/to/best_ema.pt --variant full_c
+  ```
+
+#### 2. Start the API Gateway
+
+Launch the API using the bundled root launcher:
+
+```bash
+# Starts API on http://127.0.0.1:8080 with SV_ENGINE_MODE=real
+python run_api.py
+```
+
+*Alternative manual startup with environment variables:*
+```powershell
+# Windows PowerShell
+$env:PYTHONPATH="packages/sv_core/src;packages/sv_engine/src;packages/sv_fusion/src;packages/sv_receipts/src;services/api/src;services/workers/src;services/monitor/src;third_party/smsdt"
+$env:SV_DATABASE_URL="sqlite+aiosqlite:///test_dev.db"
+$env:SV_ENGINE_MODE="real" # use "mock" for quick synthetic tests without weights
+python -m uvicorn sv_api.main:app --host 127.0.0.1 --port 8080
+```
+```bash
+# Linux / macOS
+export PYTHONPATH="packages/sv_core/src:packages/sv_engine/src:packages/sv_fusion/src:packages/sv_receipts/src:services/api/src:services/workers/src:services/monitor/src:third_party/smsdt"
+export SV_DATABASE_URL="sqlite+aiosqlite:///test_dev.db"
+export SV_ENGINE_MODE="real" # use "mock" for quick synthetic tests without weights
+python -m uvicorn sv_api.main:app --host 127.0.0.1 --port 8080
+```
+
+The API endpoints will be live at:
+- **API Base:** [http://127.0.0.1:8080](http://127.0.0.1:8080)
+- **Interactive OpenAPI Documentation:** [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs)
+
+#### 3. Start the Web Console
+
+In a separate terminal, start the Vite frontend development server:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open your browser to [http://localhost:5173](http://localhost:5173):
+- **Upload & Analyze (`/app/analyze`):** Upload any test video. Videos are decoded, tracked, scored by S-MSDT, and transcoded to browser-compatible H.264 MP4 streams on demand.
+- **Evidence Player & Grad-CAM (`/app/cases/{id}`):** Inspect frame-by-frame video playback with dynamic $16 \times 16$ patch-level Grad-CAM attention heatmaps overlaid on detected face bounding boxes.
+- **Review Queue (`/app/review`):** Triage cases awaiting auditor review (`pending_review`). Includes hotkeys (`F` for fake, `R` for real, `N` for escalate).
+- **Cryptographic Receipts (`/v1/receipts/{id}`):** Download RFC 8785 canonical JSON tamper-proof receipts with Ed25519 signatures.
+
+---
+
+### Docker Compose (Containerized Mode)
+
+To run the full stack containerized with Redis, MinIO, PostgreSQL, API, and Celery workers:
+
+```bash
 # Initialize development environment
 make dev
 ```
 
-Visit the services:
-- **Home page and Reviewer Console:** [http://localhost:5173](http://localhost:5173) (console at `/app`, public verifier at `/verify`)
+Visit the containerized services:
+- **Reviewer Console:** [http://localhost:5173](http://localhost:5173)
 - **API Gateway & Swagger Docs:** [http://localhost:8080/docs](http://localhost:8080/docs)
 - **MinIO Storage Console:** [http://localhost:9001](http://localhost:9001)
 
-### Web app only (no backend)
+---
+
+### Frontend Standalone Demo Mode (No Backend)
+
+If you only want to test the React frontend without running a local backend:
 
 ```bash
 cd web
-npm ci
-npm run dev            # http://localhost:5173 — falls back to labelled DEMO DATA when the API is not running
-VITE_DATA_MODE=demo npm run dev   # force generated demo data everywhere
+npm install
+npm run dev                          # Falls back to labelled DEMO DATA when API is unreachable
+VITE_DATA_MODE=demo npm run dev     # Forces generated demo data everywhere
 ```
 
-The console marks every generated item with a **DEMO DATA** badge. The synthetic demo video in `web/public/demo/` is produced by `web/scripts/make_demo_video.py` and contains no real person.
+The console marks every generated item with a **DEMO DATA** badge.
+
+---
 
 ### Running Tests
 
 ```bash
-# Unit and integration tests (mock mode)
+# Run unit & pipeline integration tests
+pytest services/api/tests/test_analyses_pipeline.py -v
+
+# Run real weights verification test
+pytest packages/sv_engine/tests/test_real_weights.py -v
+
+# Run entire test suite (mock mode)
 make test
 
-# Code quality checks
+# Code quality and styling checks
 make lint
 ```
 
@@ -166,5 +246,3 @@ The repository includes curated, executable skill modules under `skills/` design
 | **Receipts & EVM Anchoring** | [`skills/receipts-and-anchoring/`](skills/receipts-and-anchoring/SKILL.md) | RFC 8785 canonical JSON, Ed25519 signatures, Merkle trees, and Foundry `ReceiptAnchor.sol` anchoring. |
 | **SENTINEL Integration** | [`skills/sentinel-integration/`](skills/sentinel-integration/SKILL.md) | Purely additive integration adapter, webhook HMAC validation, and locked-file preservation. |
 | **Reviewer Console Engineering** | [`skills/reviewer-console-engineering/`](skills/reviewer-console-engineering/SKILL.md) | Canvas heat-map synchronization via `requestVideoFrameCallback`, keyboard shortcuts, and WCAG 2.2 AA. |
-
-
