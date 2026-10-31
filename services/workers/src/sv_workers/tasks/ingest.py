@@ -79,6 +79,24 @@ async def _async_ingest(
             analysis.cache_hit = True
             analysis.completed_at = now
 
+            # Ensure media file is prepared for deduplicated analysis ID
+            import tempfile
+            import shutil
+            temp_dir = tempfile.gettempdir()
+            ext = os.path.splitext(media_path)[1].lower()
+            if ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp"]:
+                img_path = os.path.join(temp_dir, f"{analysis_id}{ext}")
+                if not os.path.exists(img_path) and os.path.exists(media_path):
+                    shutil.copyfile(media_path, img_path)
+            else:
+                web_path = os.path.join(temp_dir, f"{analysis_id}_web.mp4")
+                if not os.path.exists(web_path) and os.path.exists(media_path):
+                    try:
+                        from sv_engine.preprocess.decode import transcode_to_h264_web
+                        transcode_to_h264_web(media_path, web_path)
+                    except Exception:
+                        pass
+
             # Clone track records from cached analysis to maintain complete case view
             trk_stmt = select(TrackModel).where(TrackModel.analysis_id == cached_analysis.id)
             trk_res = await session.execute(trk_stmt)
@@ -120,6 +138,33 @@ async def _async_ingest(
             }
 
         # 3. Create or Link Media record
+        is_img_path = False
+        img_container = "mp4"
+        try:
+            with open(media_path, "rb") as mf:
+                hdr = mf.read(16)
+            if hdr.startswith(b"\xff\xd8\xff"):
+                is_img_path = True
+                img_container = "jpg"
+            elif hdr.startswith(b"\x89PNG\r\n\x1a\n"):
+                is_img_path = True
+                img_container = "png"
+            elif hdr.startswith(b"RIFF") and len(hdr) >= 12 and hdr[8:12] == b"WEBP":
+                is_img_path = True
+                img_container = "webp"
+            elif hdr.startswith(b"BM"):
+                is_img_path = True
+                img_container = "bmp"
+            else:
+                ext_raw = os.path.splitext(media_path)[1].replace(".", "").lower()
+                if ext_raw in ["jpg", "jpeg", "png", "webp", "bmp"]:
+                    is_img_path = True
+                    img_container = "jpg" if ext_raw == "jpeg" else ext_raw
+                else:
+                    img_container = ext_raw or "mp4"
+        except Exception:
+            pass
+
         media_stmt = select(Media).where(Media.sha256 == sha256_hex)
         media_res = await session.execute(media_stmt)
         media_record = media_res.scalars().first()
@@ -128,15 +173,36 @@ async def _async_ingest(
             media_record = Media(
                 id=f"med_{sha256_hex[:16]}",
                 sha256=sha256_hex,
-                container=os.path.splitext(media_path)[1].replace(".", "").lower() or "mp4",
-                s3_key=f"raw/{sha256_hex}.mp4",
+                container=img_container,
+                codec="jpeg" if img_container == "jpg" else ("png" if img_container == "png" else ("h264" if not is_img_path else img_container)),
+                duration_s=0.0 if is_img_path else None,
+                fps=1.0 if is_img_path else None,
+                s3_key=f"raw/{sha256_hex}.{img_container}",
                 created_at=now,
             )
             session.add(media_record)
             await session.flush()
+        else:
+            if is_img_path and media_record.container in ["mp4", None]:
+                media_record.container = img_container
+                media_record.duration_s = 0.0
+                await session.flush()
 
         analysis.media_id = media_record.id
         analysis.status = "processing"
+
+        # Inspect C2PA provenance manifest (SPEC §9)
+        from sv_fusion.c2pa import inspect_c2pa
+        c2pa_info = inspect_c2pa(media_path)
+        signals_dict = {}
+        if analysis.signals:
+            try:
+                signals_dict = json.loads(analysis.signals)
+            except Exception:
+                signals_dict = {}
+        signals_dict["c2pa"] = c2pa_info
+        analysis.signals = json.dumps(signals_dict)
+
         await session.commit()
 
         await publish_progress(analysis_id, "ingest", 25, "Media validated and indexed")

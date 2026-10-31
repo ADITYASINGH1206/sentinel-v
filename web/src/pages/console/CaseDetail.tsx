@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, ClipboardCheck, FileDown, FileSearch, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ClipboardCheck, FileDown, FileSearch, RefreshCw, Sparkles } from 'lucide-react';
 import { EvidencePlayer } from '../../components/EvidencePlayer';
 import { ClipTimeline } from '../../components/ClipTimeline';
+import { KeyframeTimeline } from '../../components/KeyframeTimeline';
 import { StageProgress } from '../../components/StageProgress';
 import { MediaPanel, ModelPanel, ReceiptPanel, SignalsPanel, TracksPanel, VerdictCard } from '../../components/console/CaseParts';
 import { PageHeader, formatDateTime } from '../../components/console/common';
@@ -57,6 +58,21 @@ const CaseDetail: React.FC = () => {
   const tauLow = c.thresholds.tauAuthentic ?? preset?.thresholds.tau_authentic ?? null;
   const processing = c.status === 'queued' || c.status === 'processing';
 
+  const gen = (c.signals.generative_image ?? null) as {
+    enabled?: boolean;
+    model?: string;
+    threshold?: number;
+    max?: number;
+    mean?: number;
+    flagged?: boolean;
+    keyframes?: Array<{ timestamp_s: number; p_artificial: number; p_real: number }>;
+  } | null;
+
+  const isGenElevated =
+    c.labels.includes('generative_signal_flagged') ||
+    (gen?.flagged ?? false) ||
+    (gen?.max != null && gen.max >= (gen.threshold ?? 0.65));
+
   const downloadReceipt = async () => {
     if (!c.receiptId) return;
     try {
@@ -72,6 +88,10 @@ const CaseDetail: React.FC = () => {
       toast.error(`Receipt download failed: ${errorMessage(err)}`);
     }
   };
+
+  const isImage = Boolean(
+    c.media?.container && ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(c.media.container.toLowerCase())
+  );
 
   return (
     <>
@@ -115,6 +135,26 @@ const CaseDetail: React.FC = () => {
         </Card>
       )}
 
+      {/* Full-Frame AI Detector Escalation Banner */}
+      {isGenElevated && !processing && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-band-review/40 bg-band-review/10 p-4 text-sm text-text">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-band-review" />
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-band-review">Decision Elevated by Full-Frame AI Detector</span>
+              <span className="inline-flex items-center gap-1 rounded bg-band-review/20 px-2 py-0.5 text-xs font-mono font-bold text-band-review">
+                <Sparkles className="h-3 w-3" />
+                Peak {gen?.max != null ? (gen.max * 100).toFixed(1) + '%' : '—'}
+              </span>
+            </div>
+            <p className="text-xs text-muted">
+              SwinV2 full-frame keyframe analysis detected high-probability synthetic generative artifacts (threshold &ge; {(gen?.threshold ?? 0.65).toFixed(2)}).
+              Case was elevated to <strong className="text-band-review font-semibold">NEEDS REVIEW</strong> per screening policy.
+            </p>
+          </div>
+        </div>
+      )}
+
       {c.status === 'failed' ? (
         <Card className="border-band-manipulated/30 p-6">
           <p className="text-sm font-semibold text-band-manipulated">This analysis failed.</p>
@@ -124,20 +164,24 @@ const CaseDetail: React.FC = () => {
         !processing && <VerdictCard c={c} preset={preset} />
       )}
 
-      {c.tracks.length > 0 && (
-        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-          <div className="flex min-w-0 flex-col gap-4">
-            <EvidencePlayer
-              videoUrl={c.videoUrl}
-              videoSources={c.videoSources}
-              tracks={c.tracks}
-              selectedTrackIdx={track}
-              onSelectTrack={setTrack}
-              onTimeUpdate={setTime}
-              seekTime={seek}
-              fps={c.media?.fps ?? 30}
-              demo={c.isDemo}
-            />
+      {/* Main Video & Timeline Section */}
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <EvidencePlayer
+            videoUrl={c.videoUrl}
+            videoSources={c.videoSources}
+            initialDuration={c.media?.durationS}
+            isImage={isImage}
+            tracks={c.tracks}
+            selectedTrackIdx={track}
+            onSelectTrack={setTrack}
+            onTimeUpdate={setTime}
+            seekTime={seek}
+            fps={c.media?.fps ?? 30}
+            demo={c.isDemo}
+          />
+
+          {!isImage && c.tracks.length > 0 && (
             <ClipTimeline
               tracks={c.tracks}
               selectedTrackIdx={track}
@@ -148,21 +192,31 @@ const CaseDetail: React.FC = () => {
               fps={c.media?.fps ?? 30}
               onSeek={(t) => setSeek((prev) => (prev === t ? t + 1e-6 : t))}
             />
-          </div>
-          <div className="flex flex-col gap-4">
-            <TracksPanel c={c} selected={track} onSelect={setTrack} />
-            <SignalsPanel c={c} />
-            <ReceiptPanel c={c} onDownload={downloadReceipt} onVerify={() => navigate(c.isDemo ? '/verify' : `/verify?receipt=${encodeURIComponent(c.receiptId ?? '')}`)} />
-          </div>
-        </div>
-      )}
+          )}
 
-      <div className={cn('mt-6 grid gap-6 lg:grid-cols-2', c.tracks.length === 0 && 'lg:grid-cols-3')}>
+          {/* SwinV2 Keyframe Timeline Strip */}
+          {gen?.keyframes && gen.keyframes.length > 0 && (
+            <KeyframeTimeline
+              keyframes={gen.keyframes}
+              threshold={gen.threshold ?? 0.65}
+              currentTime={time}
+              onSeek={(t) => setSeek((prev) => (prev === t ? t + 1e-6 : t))}
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {c.tracks.length > 0 && (
+            <TracksPanel c={c} selected={track} onSelect={setTrack} />
+          )}
+          <SignalsPanel c={c} />
+          <ReceiptPanel c={c} onDownload={downloadReceipt} onVerify={() => navigate(c.isDemo ? '/verify' : `/verify?receipt=${encodeURIComponent(c.receiptId ?? '')}`)} />
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <MediaPanel c={c} />
         <ModelPanel c={c} />
-        {c.tracks.length === 0 && (
-          <SignalsPanel c={c} />
-        )}
       </div>
     </>
   );

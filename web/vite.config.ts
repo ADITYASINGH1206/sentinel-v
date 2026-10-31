@@ -31,10 +31,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/v1': { target: 'http://localhost:8080', changeOrigin: true },
-      '/compat': { target: 'http://localhost:8080', changeOrigin: true },
-      '/.well-known': { target: 'http://localhost:8080', changeOrigin: true },
-      '/readyz': { target: 'http://localhost:8080', changeOrigin: true },
+      '/v1': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      '/compat': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      '/.well-known': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      '/readyz': { target: 'http://127.0.0.1:8080', changeOrigin: true },
     },
   },
 });

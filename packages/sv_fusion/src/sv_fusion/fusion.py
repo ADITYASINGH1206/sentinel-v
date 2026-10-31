@@ -14,8 +14,15 @@ def fuse_signals_v1(
     """Deterministic Fusion v1 conforming to SPEC §9."""
     labels: list[str] = []
 
-    # Rule 1: If face_manipulation is inconclusive, decision is inconclusive
+    # Rule 1: If face_manipulation is inconclusive, check if full-frame generative model detected synthetic content
     if face_decision == DecisionBand.INCONCLUSIVE:
+        if c2pa_info and c2pa_info.get("ai_disclosed", False):
+            labels.append("disclosed_ai_content")
+        if gen_threshold is not None and gen_image_info:
+            max_gen = gen_image_info.get("max", 0.0)
+            if max_gen >= gen_threshold or gen_image_info.get("flagged", False):
+                labels.append("generative_signal_flagged")
+                return DecisionBand.NEEDS_REVIEW, labels, None
         return DecisionBand.INCONCLUSIVE, labels, inconclusive_reason
 
     # Rule 2: If C2PA present with ai_disclosed=true, add label
@@ -27,7 +34,7 @@ def fuse_signals_v1(
     # Rule 3: If generative_image.max >= gen_threshold and band is likely_authentic, raise to needs_review
     if gen_threshold is not None and gen_image_info:
         max_gen = gen_image_info.get("max", 0.0)
-        if max_gen >= gen_threshold and final_band == DecisionBand.LIKELY_AUTHENTIC:
+        if (max_gen >= gen_threshold or gen_image_info.get("flagged", False)) and final_band == DecisionBand.LIKELY_AUTHENTIC:
             final_band = DecisionBand.NEEDS_REVIEW
             labels.append("generative_signal_flagged")
 

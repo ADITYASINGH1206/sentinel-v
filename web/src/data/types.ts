@@ -29,7 +29,10 @@ export interface CaseView {
     fps: number;
     codec: string;
     container: string;
+    mediaType?: 'image' | 'video';
   } | null;
+  mediaType?: 'image' | 'video';
+  isImage?: boolean;
   videoUrl?: string;
   videoSources?: Array<{ src: string; type: string }>;
   tracks: TrackData[];
@@ -59,6 +62,8 @@ export interface CaseSummary {
   reviewStatus: string;
   policyId: string;
   isDemo: boolean;
+  mediaType?: 'image' | 'video';
+  isImage?: boolean;
 }
 
 export interface ReviewPayload {

@@ -32,6 +32,7 @@ class MediaInfo(BaseModel):
     codec: str
     container: str
     deleted: bool = False
+    media_type: str = "video"
 
 
 class ClipScore(BaseModel):
@@ -84,6 +85,8 @@ class Analysis(BaseModel):
     status: AnalysisStatus
     media: MediaInfo | None = None
     video_url: str | None = None
+    media_url: str | None = None
+    media_type: str = "video"
     policy: dict[str, Any]
     decision: DecisionBand | None = None
     inconclusive_reason: InconclusiveReason | None = None
@@ -113,6 +116,7 @@ class AnalysisSummary(BaseModel):
     faces: int = 0
     source: str = "api"
     review_status: str = "not_required"
+    media_type: str = "video"
     policy_id: str = "—"
 
 

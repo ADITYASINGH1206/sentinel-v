@@ -155,7 +155,7 @@ const Cases: React.FC = () => {
                     <td className="px-4 py-2.5">{c.band ? <BandChip band={c.band} size="sm" /> : <StatusPill status={c.status} />}</td>
                     <td className="px-4 py-2.5 font-mono text-text">{c.pBal != null ? c.pBal.toFixed(2) : '—'}</td>
                     <td className="px-4 py-2.5 font-mono text-muted">{c.faces}</td>
-                    <td className="px-4 py-2.5 font-mono text-muted">{c.durationS != null ? `${c.durationS.toFixed(0)} s` : '—'}</td>
+                    <td className="px-4 py-2.5 font-mono text-muted">{c.isImage ? <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-sans font-medium text-accent">Image</span> : (c.durationS != null ? `${c.durationS.toFixed(0)} s` : '—')}</td>
                     <td className="px-4 py-2.5 text-muted">{SOURCE_LABEL[c.source] ?? c.source}</td>
                     <td className="px-4 py-2.5">
                       <StatusPill status={c.reviewStatus} />

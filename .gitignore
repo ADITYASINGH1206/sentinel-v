@@ -56,6 +56,7 @@ data/
 .DS_Store
 
 # Models & Weights (large binaries)
+models/aux/
 models/weight/
 models/**/*.safetensors
 models/**/*.pt

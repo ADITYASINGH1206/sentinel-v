@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { demoHeat, HEAT_ALPHA_FLOOR, magma } from '../utils/heat';
-import { Play, Pause, SkipBack, SkipForward, Flame, Eye, EyeOff, Maximize2, Volume2, VolumeX, FlaskConical, ImageOff } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Flame, Eye, EyeOff, Maximize2, Volume2, VolumeX, FlaskConical, ImageOff, Image as ImageIcon } from 'lucide-react';
 
 export interface ClipScoreData {
   k: number;
@@ -26,6 +26,8 @@ interface EvidencePlayerProps {
   videoUrl?: string;
   /** Optional alternative encodings, tried in order (e.g. WebM then MP4). */
   videoSources?: Array<{ src: string; type: string }>;
+  initialDuration?: number;
+  isImage?: boolean;
   tracks?: TrackData[];
   selectedTrackIdx: number;
   onSelectTrack: (idx: number) => void;
@@ -43,6 +45,8 @@ const GRID = 16;
 export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
   videoUrl,
   videoSources,
+  initialDuration = 0,
+  isImage = false,
   tracks = [],
   selectedTrackIdx,
   onSelectTrack,
@@ -53,14 +57,33 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
   demo = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(initialDuration);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [opacity, setOpacity] = useState(0.6);
   const [isMuted, setIsMuted] = useState(true);
+
+  const primarySrc = videoUrl || videoSources?.[0]?.src;
+
+  useEffect(() => {
+    if (isImage) return;
+    const v = videoRef.current;
+    if (!v) return;
+    v.load();
+    if (v.duration && Number.isFinite(v.duration)) {
+      setDuration(v.duration);
+    }
+  }, [primarySrc, videoUrl, videoSources, isImage]);
+
+  useEffect(() => {
+    if (initialDuration && (!duration || !Number.isFinite(duration))) {
+      setDuration(initialDuration);
+    }
+  }, [initialDuration, duration]);
 
   useEffect(() => {
     if (seekTime !== undefined && videoRef.current) {
@@ -72,13 +95,13 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
   const activeTrack = tracks.find((t) => t.track_idx === selectedTrackIdx) || tracks[0];
 
   const drawOverlay = useCallback(
-    (ctx: CanvasRenderingContext2D, width: number, height: number, time: number, video: HTMLVideoElement) => {
+    (ctx: CanvasRenderingContext2D, width: number, height: number, time: number, media: HTMLElement) => {
       ctx.clearRect(0, 0, width, height);
       if (!overlayVisible || !activeTrack?.box) return;
 
-      // Map normalized video coordinates into the letterboxed content rect (object-contain).
-      const vw = video.videoWidth || 16;
-      const vh = video.videoHeight || 9;
+      // Map normalized video/image coordinates into the letterboxed content rect (object-contain).
+      const vw = (media as HTMLVideoElement).videoWidth || (media as HTMLImageElement).naturalWidth || 16;
+      const vh = (media as HTMLVideoElement).videoHeight || (media as HTMLImageElement).naturalHeight || 9;
       const scale = Math.min(width / vw, height / vh);
       const cw = vw * scale;
       const ch = vh * scale;
@@ -95,22 +118,32 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
       });
       const score = clip ? clip.p : activeTrack.p_bal;
 
-      // Draw Grad-CAM patch heatmap over detected face bounding box
+      // Draw Grad-CAM patch heatmap over detected face bounding box with adaptive min-max scaling
       const cellW = bw / GRID;
       const cellH = bh / GRID;
       const hasPatches = Boolean(clip?.patches && clip.patches.length === GRID * GRID);
+
+      let minP = 0;
+      let maxP = 1;
+      if (hasPatches && clip?.patches) {
+        minP = Math.min(...clip.patches);
+        maxP = Math.max(...clip.patches);
+      }
+      const rangeP = maxP - minP > 1e-4 ? maxP - minP : 1;
 
       for (let gy = 0; gy < GRID; gy++) {
         for (let gx = 0; gx < GRID; gx++) {
           let v = 0;
           if (hasPatches && clip?.patches) {
-            v = clip.patches[gy * GRID + gx];
+            const raw = clip.patches[gy * GRID + gx];
+            v = (raw - minP) / rangeP;
           } else {
-            v = demoHeat(gx, gy, activeTrack.track_idx) * Math.max(score, 0.2);
+            v = demoHeat(gx, gy, activeTrack.track_idx);
           }
-          if (v < 0.05) continue;
+          if (v < 0.08) continue;
           const [r, g, b] = magma(v);
-          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(0.9, Math.max(0.2, v)) * opacity})`;
+          const cellAlpha = Math.min(0.95, Math.max(0.25, v)) * opacity;
+          ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${cellAlpha})`;
           ctx.fillRect(bx + gx * cellW, by + gy * cellH, cellW + 0.5, cellH + 0.5);
         }
       }
@@ -146,27 +179,28 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
 
   useEffect(() => {
     let animId = 0;
-    const video = videoRef.current;
+    const media = isImage ? imageRef.current : videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!media || !canvas) return;
     const render = () => {
       const ctx = canvas.getContext?.('2d');
       if (ctx) {
         const dpr = window.devicePixelRatio || 1;
-        const w = video.clientWidth;
-        const h = video.clientHeight;
+        const w = media.clientWidth;
+        const h = media.clientHeight;
         if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
           canvas.width = Math.round(w * dpr);
           canvas.height = Math.round(h * dpr);
         }
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        drawOverlay(ctx, w, h, video.currentTime, video);
+        const time = isImage ? 0 : (videoRef.current?.currentTime || 0);
+        drawOverlay(ctx, w, h, time, media);
       }
       animId = requestAnimationFrame(render);
     };
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [drawOverlay]);
+  }, [drawOverlay, isImage]);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -223,6 +257,12 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        toggleOverlay();
+        return;
+      }
+      if (isImage) return;
       if (e.code === 'Space') {
         e.preventDefault();
         togglePlayPause();
@@ -235,14 +275,11 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
       } else if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         jumpToPeakClip();
-      } else if (e.key === 'h' || e.key === 'H') {
-        e.preventDefault();
-        toggleOverlay();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlayPause, stepFrame, jumpToPeakClip, toggleOverlay]);
+  }, [togglePlayPause, stepFrame, jumpToPeakClip, toggleOverlay, isImage]);
 
   const progress = duration ? (currentTime / duration) * 100 : 0;
   const ctrl = 'grid h-8 w-8 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-text';
@@ -250,16 +287,37 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
   return (
     <div className="flex flex-col overflow-hidden rounded-md border border-border bg-surface shadow-1">
       <div className="group relative flex aspect-video items-center justify-center overflow-hidden bg-[#05080d]">
-        {videoUrl || videoSources?.length ? (
+        {isImage && primarySrc ? (
+          <img
+            ref={imageRef}
+            src={primarySrc}
+            alt="Screened media"
+            className="h-full w-full object-contain"
+          />
+        ) : (videoUrl || videoSources?.length) ? (
           <video
             ref={videoRef}
-            src={videoSources?.length ? undefined : videoUrl}
+            key={primarySrc || 'video-node'}
+            src={primarySrc}
             className="h-full w-full object-contain"
             playsInline
             muted={isMuted}
-            preload="metadata"
+            preload="auto"
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
+            onCanPlay={() => {
+              if (videoRef.current?.duration) {
+                setDuration(videoRef.current.duration);
+              }
+            }}
+            onDurationChange={() => {
+              if (videoRef.current?.duration) {
+                setDuration(videoRef.current.duration);
+              }
+            }}
+            onError={(e) => {
+              console.warn('Video failed to load:', e);
+            }}
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
@@ -278,7 +336,11 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
 
         <div className="absolute left-3 top-3 flex items-center gap-2">
-          {demo ? (
+          {isImage ? (
+            <span className="inline-flex items-center gap-1.5 rounded bg-black/70 px-2.5 py-1 text-[11px] font-medium text-[#C9D2DE] backdrop-blur border border-white/10">
+              <ImageIcon className="h-3.5 w-3.5 text-accent" /> Image Inspection
+            </span>
+          ) : demo ? (
             <span className="inline-flex items-center gap-1 rounded bg-[#E9B949]/90 px-2 py-0.5 font-mono text-[10px] font-semibold text-[#1a1300]">
               <FlaskConical className="h-3 w-3" aria-hidden /> DEMO EVIDENCE
             </span>
@@ -294,98 +356,136 @@ export const EvidencePlayer: React.FC<EvidencePlayerProps> = ({
           <Flame className={`h-3.5 w-3.5 ${overlayVisible ? 'text-[#FC8961]' : 'text-gray-500'}`} aria-hidden />
           <span className="font-mono">{overlayVisible ? 'Overlay on' : 'Overlay hidden'}</span>
         </div>
-        <div className="absolute bottom-0 left-0 h-0.5 bg-accent transition-[width] duration-100" style={{ width: `${progress}%` }} />
+        {!isImage && <div className="absolute bottom-0 left-0 h-0.5 bg-accent transition-[width] duration-100" style={{ width: `${progress}%` }} />}
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border p-3">
-        <div className="flex items-center gap-3 font-mono text-xs text-muted">
-          <span className="w-12 tabular-nums">{currentTime.toFixed(2)}s</span>
-          <input
-            type="range"
-            min={0}
-            max={duration || 1}
-            step={1 / fps}
-            value={currentTime}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              if (videoRef.current) videoRef.current.currentTime = val;
-              setCurrentTime(val);
-              onTimeUpdate?.(val);
-            }}
-            aria-label="Video scrubber"
-            className="range flex-1"
-          />
-          <span className="w-12 text-right tabular-nums">{duration.toFixed(2)}s</span>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
-            <button onClick={() => stepFrame(-1)} title="Step backward (←)" aria-label="Step backward 1 frame" className={ctrl}>
-              <SkipBack className="h-4 w-4" />
-            </button>
-            <button
-              onClick={togglePlayPause}
-              title="Play/Pause (Space)"
-              aria-label={isPlaying ? 'Pause video' : 'Play video'}
-              className="grid h-9 w-9 place-items-center rounded-full bg-accent text-accent-contrast shadow-1 transition-transform hover:scale-105 active:scale-95"
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
-            </button>
-            <button onClick={() => stepFrame(1)} title="Step forward (→)" aria-label="Step forward 1 frame" className={ctrl}>
-              <SkipForward className="h-4 w-4" />
-            </button>
-            <button
-              onClick={jumpToPeakClip}
-              title="Jump to peak clip (P)"
-              aria-label="Jump to peak suspicion clip"
-              className="ml-1 inline-flex items-center gap-1 rounded-md border border-band-review/30 bg-band-review/10 px-2.5 py-1 text-xs font-medium text-band-review transition-colors hover:bg-band-review/15"
-            >
-              <Flame className="h-3.5 w-3.5" /> Peak clip <span className="font-mono opacity-70">P</span>
-            </button>
-          </div>
-
-          {tracks.length > 1 && (
-            <div className="flex items-center gap-1" role="group" aria-label="Face track">
-              <span className="mr-1 text-xs text-muted">Track</span>
-              {tracks.map((t) => (
-                <button
-                  key={t.track_idx}
-                  onClick={() => onSelectTrack(t.track_idx)}
-                  aria-pressed={selectedTrackIdx === t.track_idx}
-                  className={`rounded-md px-2 py-0.5 font-mono text-xs transition-colors ${
-                    selectedTrackIdx === t.track_idx ? 'bg-accent text-accent-contrast' : 'text-muted hover:bg-surface-2'
-                  }`}
-                >
-                  #{t.track_idx}
-                  {t.decisive && ' ★'}
-                </button>
-              ))}
+        {isImage ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="rounded bg-surface-2 px-2.5 py-1 font-mono text-xs font-medium text-text border border-border">
+                Static Image Media
+              </span>
+              {activeTrack?.box ? (
+                <span className="text-muted">
+                  Face Crop Detected · Facial Score: <span className="font-mono font-medium text-text">{activeTrack.p_bal.toFixed(3)}</span>
+                </span>
+              ) : (
+                <span className="text-muted font-mono text-xs">Full-Frame Analysis</span>
+              )}
             </div>
-          )}
 
-          <div className="flex items-center gap-2">
-            <button onClick={toggleOverlay} title="Toggle overlay (H)" aria-label={overlayVisible ? 'Hide heatmap overlay' : 'Show heatmap overlay'} className={ctrl}>
-              {overlayVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            </button>
-            <input
-              type="range"
-              min={0.1}
-              max={1.0}
-              step={0.05}
-              value={opacity}
-              onChange={(e) => setOpacity(parseFloat(e.target.value))}
-              aria-label="Heatmap overlay opacity"
-              aria-valuetext={`${Math.round(opacity * 100)} percent`}
-              className="range w-20"
-            />
-            <button onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'} className={ctrl}>
-              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-            <button onClick={() => videoRef.current?.requestFullscreen?.()} aria-label="Toggle fullscreen" className={ctrl}>
-              <Maximize2 className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={toggleOverlay} title="Toggle overlay (H)" aria-label={overlayVisible ? 'Hide heatmap overlay' : 'Show heatmap overlay'} className={ctrl}>
+                {overlayVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </button>
+              <input
+                type="range"
+                min={0.1}
+                max={1.0}
+                step={0.05}
+                value={opacity}
+                onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                aria-label="Heatmap overlay opacity"
+                className="range w-20"
+              />
+              <button onClick={() => imageRef.current?.requestFullscreen?.()} aria-label="Toggle fullscreen" className={ctrl}>
+                <Maximize2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 font-mono text-xs text-muted">
+              <span className="w-12 tabular-nums">{currentTime.toFixed(2)}s</span>
+              <input
+                type="range"
+                min={0}
+                max={duration || 1}
+                step={1 / fps}
+                value={currentTime}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (videoRef.current) videoRef.current.currentTime = val;
+                  setCurrentTime(val);
+                  onTimeUpdate?.(val);
+                }}
+                aria-label="Video scrubber"
+                className="range flex-1"
+              />
+              <span className="w-12 text-right tabular-nums">{duration.toFixed(2)}s</span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-1">
+                <button onClick={() => stepFrame(-1)} title="Step backward (←)" aria-label="Step backward 1 frame" className={ctrl}>
+                  <SkipBack className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={togglePlayPause}
+                  title="Play/Pause (Space)"
+                  aria-label={isPlaying ? 'Pause video' : 'Play video'}
+                  className="grid h-9 w-9 place-items-center rounded-full bg-accent text-accent-contrast shadow-1 transition-transform hover:scale-105 active:scale-95"
+                >
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
+                </button>
+                <button onClick={() => stepFrame(1)} title="Step forward (→)" aria-label="Step forward 1 frame" className={ctrl}>
+                  <SkipForward className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={jumpToPeakClip}
+                  title="Jump to peak clip (P)"
+                  aria-label="Jump to peak suspicion clip"
+                  className="ml-1 inline-flex items-center gap-1 rounded-md border border-band-review/30 bg-band-review/10 px-2.5 py-1 text-xs font-medium text-band-review transition-colors hover:bg-band-review/15"
+                >
+                  <Flame className="h-3.5 w-3.5" /> Peak clip <span className="font-mono opacity-70">P</span>
+                </button>
+              </div>
+
+              {tracks.length > 1 && (
+                <div className="flex items-center gap-1" role="group" aria-label="Face track">
+                  <span className="mr-1 text-xs text-muted">Track</span>
+                  {tracks.map((t) => (
+                    <button
+                      key={t.track_idx}
+                      onClick={() => onSelectTrack(t.track_idx)}
+                      aria-pressed={selectedTrackIdx === t.track_idx}
+                      className={`rounded-md px-2 py-0.5 font-mono text-xs transition-colors ${
+                        selectedTrackIdx === t.track_idx ? 'bg-accent text-accent-contrast' : 'text-muted hover:bg-surface-2'
+                      }`}
+                    >
+                      #{t.track_idx}
+                      {t.decisive && ' ★'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button onClick={toggleOverlay} title="Toggle overlay (H)" aria-label={overlayVisible ? 'Hide heatmap overlay' : 'Show heatmap overlay'} className={ctrl}>
+                  {overlayVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+                <input
+                  type="range"
+                  min={0.1}
+                  max={1.0}
+                  step={0.05}
+                  value={opacity}
+                  onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                  aria-label="Heatmap overlay opacity"
+                  aria-valuetext={`${Math.round(opacity * 100)} percent`}
+                  className="range w-20"
+                />
+                <button onClick={() => setIsMuted(!isMuted)} aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'} className={ctrl}>
+                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                </button>
+                <button onClick={() => videoRef.current?.requestFullscreen?.()} aria-label="Toggle fullscreen" className={ctrl}>
+                  <Maximize2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

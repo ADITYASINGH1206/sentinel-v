@@ -101,9 +101,28 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
             return {"error": "Analysis not found"}
 
         if inconclusive:
+            signals_data = {}
+            if analysis.signals:
+                try:
+                    signals_data = json.loads(analysis.signals)
+                except Exception:
+                    signals_data = {}
+            c2pa_info = signals_data.get("c2pa")
+            gen_image_info = signals_data.get("generative_image")
+            from sv_fusion.fusion import fuse_signals_v1
+            final_band, fusion_labels, _ = fuse_signals_v1(
+                face_decision=DecisionBand.INCONCLUSIVE,
+                face_p_bal=0.0,
+                inconclusive_reason=analysis.inconclusive_reason,
+                c2pa_info=c2pa_info,
+                gen_image_info=gen_image_info,
+                gen_threshold=0.65,
+            )
+            analysis.labels = json.dumps(fusion_labels)
             analysis.status = "completed"
-            analysis.decision = DecisionBand.INCONCLUSIVE.value
+            analysis.decision = final_band.value
             analysis.completed_at = now
+            analysis.review_status = "pending_review"
             analysis.receipt_id = f"rcpt_{secrets.token_hex(16)}"
             await session.commit()
 
@@ -114,9 +133,9 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
                 f"Analysis completed: inconclusive ({analysis.inconclusive_reason})",
             )
             await _dispatch_completion_webhook(
-                analysis, DecisionBand.INCONCLUSIVE.value, 0.0, analysis.receipt_id, now
+                analysis, final_band.value, 0.0, analysis.receipt_id, now
             )
-            return {"analysis_id": analysis_id, "status": "completed", "decision": "inconclusive"}
+            return {"analysis_id": analysis_id, "status": "completed", "decision": final_band.value}
 
         # Load tracks
         trk_stmt = select(TrackModel).where(TrackModel.analysis_id == analysis_id)
@@ -140,11 +159,31 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
         ppv = estimate_ppv(tpr=0.471, fpr=0.01, prevalence=prior_prev)
 
         # Assign decision band dynamically based on policy thresholds
-        decision = assign_decision_band(
+        raw_decision = assign_decision_band(
             p_bal,
             tau_authentic=policy_cfg.thresholds.tau_authentic,
             tau_manipulated=policy_cfg.thresholds.tau_manipulated,
         )
+
+        # Multi-signal fusion with C2PA and auxiliary signals (SPEC §9)
+        from sv_fusion.fusion import fuse_signals_v1
+        signals_data = {}
+        if analysis.signals:
+            try:
+                signals_data = json.loads(analysis.signals)
+            except Exception:
+                signals_data = {}
+
+        c2pa_info = signals_data.get("c2pa")
+        gen_image_info = signals_data.get("generative_image")
+        final_band, fusion_labels, _ = fuse_signals_v1(
+            face_decision=DecisionBand(raw_decision),
+            face_p_bal=p_bal,
+            c2pa_info=c2pa_info,
+            gen_image_info=gen_image_info,
+            gen_threshold=0.65,
+        )
+        decision = final_band.value
 
         scores_summary = {
             "u": round(u_video, 4),
@@ -155,13 +194,7 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
         }
 
         # Read decisive evidence_root from signals if present
-        evidence_root = None
-        if analysis.signals:
-            try:
-                signals_data = json.loads(analysis.signals)
-                evidence_root = signals_data.get("evidence_root")
-            except Exception:
-                pass
+        evidence_root = signals_data.get("evidence_root")
 
         # Build Detection Receipt
         priv_key, _ = generate_keypair()
@@ -174,6 +207,9 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
             "policy_version": analysis.policy_version,
             "timestamp": now.isoformat() + "Z",
         }
+        if gen_image_info and gen_image_info.get("enabled"):
+            receipt_dict["generative_image_score"] = gen_image_info.get("max")
+            receipt_dict["generative_model_version"] = gen_image_info.get("model", "swinv2-haywoodsloan")
         if evidence_root:
             receipt_dict["evidence_root"] = evidence_root
 
@@ -181,6 +217,7 @@ async def _async_finalize(analysis_id: str, inconclusive: bool = False) -> dict[
 
         analysis.status = "completed"
         analysis.decision = decision
+        analysis.labels = json.dumps(fusion_labels)
         analysis.scores = json.dumps(scores_summary)
         analysis.cascade = json.dumps(
             {

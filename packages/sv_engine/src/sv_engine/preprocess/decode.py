@@ -218,7 +218,7 @@ def decode_video(
 
 def transcode_to_h264_web(input_path: str, output_path: str) -> str:
     """Ensure video is encoded in browser-playable H.264 (yuv420p) with FastStart."""
-    if os.path.exists(output_path):
+    if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
         return output_path
     try:
         inp = av.open(input_path)
@@ -226,17 +226,14 @@ def transcode_to_h264_web(input_path: str, output_path: str) -> str:
             inp.close()
             return input_path
         in_s = inp.streams.video[0]
-        if in_s.name in ("h264", "avc1") and in_s.pix_fmt in ("yuv420p", "yuvj420p"):
-            inp.close()
-            return input_path
 
         rate = in_s.average_rate if in_s.average_rate else 30
-        out = av.open(output_path, mode="w", format="mp4")
+        out = av.open(output_path, mode="w", format="mp4", options={"movflags": "faststart"})
         out_s = out.add_stream("libx264", rate=rate)
         out_s.width = in_s.codec_context.width
         out_s.height = in_s.codec_context.height
         out_s.pix_fmt = "yuv420p"
-        out_s.options = {"crf": "23", "preset": "veryfast"}
+        out_s.options = {"crf": "23", "preset": "ultrafast"}
 
         for frame in inp.decode(in_s):
             for packet in out_s.encode(frame):

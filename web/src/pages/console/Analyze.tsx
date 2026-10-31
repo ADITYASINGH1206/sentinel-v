@@ -45,7 +45,7 @@ const Analyze: React.FC = () => {
   const [policy, setPolicy] = useState('strict-low-fpr');
   const [prevalence, setPrevalence] = useState(0.01);
   const [forceFull, setForceFull] = useState(false);
-  const [gradcam, setGradcam] = useState(false);
+  const [gradcam, setGradcam] = useState(true);
   const [skipCache, setSkipCache] = useState(false);
   const [externalRef, setExternalRef] = useState('');
   const [progress, setProgress] = useState<number | null>(null);
@@ -55,18 +55,23 @@ const Analyze: React.FC = () => {
   const acceptFile = useCallback(async (f: File | undefined) => {
     setError(null);
     if (!f) return;
-    if (!f.type.startsWith('video/') && !/\.(mp4|mov|webm|mkv|avi)$/i.test(f.name)) {
-      setError('UNSUPPORTED_MEDIA: choose an MP4, MOV, WebM, MKV or AVI video.');
+    const isVid = f.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi)$/i.test(f.name);
+    const isImg = f.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|bmp)$/i.test(f.name);
+    if (!isVid && !isImg) {
+      setError('UNSUPPORTED_MEDIA: choose a video (MP4, MOV, WebM, MKV) or image (JPG, PNG, WebP).');
       return;
     }
     if (f.size > MAX_MB * 1024 * 1024) {
       setError(`MEDIA_TOO_LARGE: the limit is ${MAX_MB} MB.`);
       return;
     }
-    const d = await readDuration(f);
-    if (d != null && d > MAX_DURATION_S) {
-      setError(`MEDIA_TOO_LONG: the limit is ${MAX_DURATION_S / 60} minutes.`);
-      return;
+    let d: number | null = null;
+    if (isVid) {
+      d = await readDuration(f);
+      if (d != null && d > MAX_DURATION_S) {
+        setError(`MEDIA_TOO_LONG: the limit is ${MAX_DURATION_S / 60} minutes.`);
+        return;
+      }
     }
     setFile(f);
     setDuration(d);
@@ -211,12 +216,12 @@ const Analyze: React.FC = () => {
                         <UploadCloud className="h-6 w-6" />
                       </m.span>
                       <span className="text-sm font-medium text-text">
-                        Drop a video here, or <span className="text-accent underline-offset-2 group-hover:underline">browse</span>
+                        Drop a video or image here, or <span className="text-accent underline-offset-2 group-hover:underline">browse</span>
                       </span>
                       <span className="text-xs text-muted">
-                        MP4, MOV, WebM, MKV · up to {MAX_MB} MB · up to {MAX_DURATION_S / 60} min
+                        MP4, MOV, WebM, MKV, JPG, PNG, WebP · up to {MAX_MB} MB
                       </span>
-                      <input ref={inputRef} type="file" accept="video/*,.mp4,.mov,.webm,.mkv,.avi" className="sr-only" onChange={(e) => acceptFile(e.target.files?.[0])} />
+                      <input ref={inputRef} type="file" accept="video/*,image/*,.mp4,.mov,.webm,.mkv,.avi,.jpg,.jpeg,.png,.webp,.bmp" className="sr-only" onChange={(e) => acceptFile(e.target.files?.[0])} />
                     </label>
                   )}
                 </m.div>

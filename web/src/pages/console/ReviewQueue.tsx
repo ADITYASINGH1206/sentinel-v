@@ -62,7 +62,7 @@ const ReviewQueue: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-sm text-text">{c.id}</p>
                     <p className="text-xs text-muted">
-                      {c.tracks.length} {c.tracks.length === 1 ? 'face' : 'faces'} · {c.media ? `${c.media.durationS.toFixed(0)} s` : '—'} · {c.source}
+                      {c.tracks.length > 0 ? `${c.tracks.length} ${c.tracks.length === 1 ? 'face' : 'faces'}` : (c.isImage ? 'Full-frame' : '0 faces')} · {c.isImage ? 'Static Image' : (c.media ? `${c.media.durationS.toFixed(0)} s` : '—')} · {c.source}
                     </p>
                   </div>
                   <span className="hidden font-mono text-sm text-text sm:inline">{c.pBal != null ? c.pBal.toFixed(2) : '—'}</span>

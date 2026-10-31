@@ -67,15 +67,27 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapAnalysis(a: any): CaseView {
+  const rawContainer = (a.media?.container || '').toLowerCase();
+  const rawCodec = (a.media?.codec || '').toLowerCase();
+  const isImage = Boolean(
+    a.is_image ||
+    a.media_type === 'image' ||
+    a.media?.media_type === 'image' ||
+    ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif'].includes(rawContainer) ||
+    ['mjpeg', 'jpeg', 'png', 'webp', 'bmp', 'gif'].includes(rawCodec) ||
+    (a.media?.duration_s === 0 && !['mp4', 'webm', 'mov', 'mkv', 'avi'].includes(rawContainer))
+  );
+
   const media = a.media
     ? {
         sha256: a.media.sha256 ?? null,
-        durationS: a.media.duration_s ?? 0,
+        durationS: isImage ? 0 : (a.media.duration_s ?? 0),
         width: a.media.width ?? 0,
         height: a.media.height ?? 0,
-        fps: a.media.fps ?? 30,
-        codec: a.media.codec ?? 'unknown',
-        container: a.media.container ?? 'unknown',
+        fps: isImage ? 1 : (a.media.fps ?? 30),
+        codec: isImage && rawCodec === 'mjpeg' ? 'jpeg' : (a.media.codec ?? 'unknown'),
+        container: isImage && (rawContainer === 'mp4' || !rawContainer) ? 'jpg' : (a.media.container ?? 'unknown'),
+        mediaType: isImage ? ('image' as const) : ('video' as const),
       }
     : null;
   const policy = a.policy ?? {};
@@ -104,6 +116,8 @@ export function mapAnalysis(a: any): CaseView {
         }
       : null,
     media,
+    mediaType: isImage ? 'image' : 'video',
+    isImage,
     videoUrl: a.video_url ?? undefined,
     tracks: Array.isArray(a.tracks) ? a.tracks : [],
     signals: a.signals ?? {},
@@ -126,23 +140,31 @@ export function mapAnalysis(a: any): CaseView {
 export const api = {
   getAnalysis: async (id: string) => mapAnalysis(await request(`/v1/analyses/${encodeURIComponent(id)}`)),
 
-  /** GET /v1/analyses is not implemented by the API yet; callers fall back to demo data on 404/405. */
   listAnalyses: async (): Promise<CaseSummary[]> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await request<{ items: any[] }>(`/v1/analyses?limit=100`);
-    return (res.items ?? []).map((a) => ({
-      id: a.id,
-      status: a.status,
-      band: asBand(a.decision),
-      pBal: num(a.p_bal),
-      createdAt: a.created_at,
-      durationS: num(a.duration_s),
-      faces: a.faces ?? 0,
-      source: a.source ?? 'api',
-      reviewStatus: a.review_status ?? 'not_required',
-      policyId: a.policy?.id ?? a.policy_id ?? '—',
-      isDemo: false,
-    }));
+    return (res.items ?? []).map((a) => {
+      const isImg = Boolean(
+        a.is_image ||
+        a.media_type === 'image' ||
+        (a.duration_s === 0 && a.source !== 'api')
+      );
+      return {
+        id: a.id,
+        status: a.status,
+        band: asBand(a.decision),
+        pBal: num(a.p_bal),
+        createdAt: a.created_at,
+        durationS: isImg ? 0 : num(a.duration_s),
+        faces: a.faces ?? 0,
+        source: a.source ?? 'api',
+        reviewStatus: a.review_status ?? 'not_required',
+        policyId: a.policy?.id ?? a.policy_id ?? '—',
+        isDemo: false,
+        mediaType: isImg ? ('image' as const) : ('video' as const),
+        isImage: isImg,
+      };
+    });
   },
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,3 +1,5 @@
+import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -37,11 +39,28 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> dict[str, Any]
     """Execute preprocessing: decode, detect, track, align, and form clips."""
     detector = MockFaceDetector() if settings.ENGINE_MODE == "mock" else None
 
+    ext = os.path.splitext(media_path)[1].lower()
+    is_image = ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
+    if not is_image and os.path.exists(media_path):
+        try:
+            with open(media_path, "rb") as mf:
+                hdr = mf.read(16)
+            if hdr.startswith(b"\xff\xd8\xff") or hdr.startswith(b"\x89PNG\r\n\x1a\n") or (hdr.startswith(b"RIFF") and len(hdr) >= 12 and hdr[8:12] == b"WEBP") or hdr.startswith(b"BM"):
+                is_image = True
+        except Exception:
+            pass
+
     # Run CPU/GPU preprocessing pipeline with resilience against malformed/fuzzed inputs (SPEC §12, §21)
     try:
-        prep_res = preprocess_video(
-            video_path=media_path, detector=detector, max_tracks=4, K=8, T=8
-        )
+        if is_image:
+            from sv_engine.preprocess import preprocess_image
+            prep_res = preprocess_image(
+                image_path=media_path, detector=detector, K=1, T=8
+            )
+        else:
+            prep_res = preprocess_video(
+                video_path=media_path, detector=detector, max_tracks=4, K=8, T=8
+            )
     except Exception as exc:
         async with async_session_maker() as session:
             stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
@@ -86,10 +105,54 @@ async def _async_preprocess(analysis_id: str, media_path: str) -> dict[str, Any]
                 media_record.height = prep_res.metadata.height
                 media_record.fps = prep_res.metadata.fps
                 media_record.codec = prep_res.metadata.codec
+                if is_image:
+                    media_record.container = "jpg" if prep_res.metadata.codec in ["jpeg", "jpg"] else (prep_res.metadata.codec or "jpg")
+                    media_record.duration_s = 0.0
                 await session.flush()
 
+        temp_dir = tempfile.gettempdir()
+        if is_image:
+            img_ext = ".jpg" if (prep_res.metadata.codec in ["jpeg", "jpg"] or not ext) else ext
+            img_dest = os.path.join(temp_dir, f"{analysis_id}{img_ext}")
+            if not os.path.exists(img_dest) and os.path.exists(media_path) and media_path != img_dest:
+                try:
+                    import shutil
+                    shutil.copyfile(media_path, img_dest)
+                except Exception:
+                    pass
+        else:
+            web_path = os.path.join(temp_dir, f"{analysis_id}_web.mp4")
+            if not os.path.exists(web_path) and os.path.exists(media_path):
+                try:
+                    from sv_engine.preprocess.decode import transcode_to_h264_web
+                    transcode_to_h264_web(media_path, web_path)
+                except Exception:
+                    pass
+
         if prep_res.inconclusive_reason is not None:
-            # Short-circuit to finalize with inconclusive outcome
+            # Short-circuit face manipulation cascade, but run SwinV2 full-frame detector (SPEC §1.2 & §9)
+            from sv_engine.preprocess.keyframes import extract_video_keyframes
+            from sv_fusion.swinv2 import get_swinv2_detector
+
+            gen_summary = {"enabled": False, "max": 0.0, "mean": 0.0, "flagged": False, "keyframes": []}
+            if os.path.exists(media_path):
+                try:
+                    keyframes = extract_video_keyframes(media_path, max_keyframes=8, interval_s=1.0)
+                    if keyframes:
+                        swinv2 = get_swinv2_detector()
+                        gen_summary = swinv2.predict_keyframes(keyframes, threshold=0.65)
+                except Exception:
+                    pass
+
+            sig_dict = {}
+            if analysis.signals:
+                try:
+                    sig_dict = json.loads(analysis.signals)
+                except Exception:
+                    pass
+            sig_dict["generative_image"] = gen_summary
+            analysis.signals = json.dumps(sig_dict)
+
             analysis.decision = "inconclusive"
             analysis.inconclusive_reason = prep_res.inconclusive_reason.value
             await session.commit()

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { ChevronDown, Cpu, FileCheck2, Film, Fingerprint, Layers, ShieldQuestion, TriangleAlert } from 'lucide-react';
+import { ChevronDown, Cpu, FileCheck2, Film, Fingerprint, Layers, ShieldQuestion, TriangleAlert, Image as ImageIcon } from 'lucide-react';
 import { BandChip } from '../BandChip';
 import { ScoreReadout } from '../ScoreReadout';
 import { Badge, Card, CardHeader, DemoBadge, Disclaimer, HashText, cn } from '../../design/ui';
@@ -77,8 +77,18 @@ export const VerdictCard: React.FC<{ c: CaseView; preset?: PolicyPreset }> = ({ 
 
 export const SignalsPanel: React.FC<{ c: CaseView }> = ({ c }) => {
   const c2pa = (c.signals.c2pa ?? null) as { present?: boolean; ai_disclosed?: boolean } | null;
-  const gen = (c.signals.generative_image ?? null) as { enabled?: boolean; max?: number } | null;
+  const gen = (c.signals.generative_image ?? null) as {
+    enabled?: boolean;
+    model?: string;
+    threshold?: number;
+    max?: number;
+    mean?: number;
+    flagged?: boolean;
+    keyframes?: Array<{ timestamp_s: number; p_artificial: number; p_real: number }>;
+  } | null;
   const meta = (c.signals.metadata ?? null) as { encoder?: string } | null;
+  const isGenFlagged = gen?.flagged || (gen?.max != null && gen.max >= (gen.threshold ?? 0.65));
+
   return (
     <Card>
       <CardHeader title="Signals" icon={<Layers className="h-4 w-4" />} />
@@ -93,12 +103,28 @@ export const SignalsPanel: React.FC<{ c: CaseView }> = ({ c }) => {
             </span>
           </Row>
         )}
-        <Row label="C2PA credentials">{c2pa ? (c2pa.present ? (c2pa.ai_disclosed ? 'Present · AI disclosed' : 'Present') : 'None found') : 'Not checked'}</Row>
-        <Row label="Generative image">
+        <Row label="C2PA credentials">
+          {c2pa ? (c2pa.present ? (c2pa.ai_disclosed ? 'Present · AI disclosed' : 'Present') : 'None found') : 'None found'}
+        </Row>
+        <Row label="AI image / video">
           {gen?.enabled ? (
-            <span className="font-mono">
-              {gen.max?.toFixed(2) ?? '—'} <Badge tone="warning">experimental</Badge>
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-semibold">
+                  {gen.max != null ? (gen.max * 100).toFixed(1) + '%' : '—'}
+                </span>
+                {isGenFlagged ? (
+                  <Badge tone="danger">Synthetic Flagged (≥0.65)</Badge>
+                ) : gen.max != null && gen.max >= 0.35 ? (
+                  <Badge tone="warning">Ambiguous</Badge>
+                ) : (
+                  <Badge tone="success">Camera / Organic</Badge>
+                )}
+              </div>
+              <span className="text-[11px] text-muted">
+                SwinV2 (haywoodsloan) · mean {gen.mean != null ? (gen.mean * 100).toFixed(1) + '%' : '—'}
+              </span>
+            </div>
           ) : (
             'Disabled'
           )}
@@ -109,17 +135,25 @@ export const SignalsPanel: React.FC<{ c: CaseView }> = ({ c }) => {
   );
 };
 
-export const MediaPanel: React.FC<{ c: CaseView }> = ({ c }) => (
-  <Card>
-    <CardHeader title="Media" icon={<Film className="h-4 w-4" />} />
-    <div className="divide-y divide-border px-4">
-      <Row label="Resolution">{c.media ? `${c.media.width} × ${c.media.height}` : '—'}</Row>
-      <Row label="Duration / fps">{c.media ? `${c.media.durationS.toFixed(1)} s · ${c.media.fps.toFixed(0)} fps` : '—'}</Row>
-      <Row label="Codec">{c.media ? `${c.media.codec} / ${c.media.container}` : '—'}</Row>
-      <Row label="SHA-256">{c.media?.sha256 ? <HashText value={c.media.sha256} /> : '—'}</Row>
-    </div>
-  </Card>
-);
+export const MediaPanel: React.FC<{ c: CaseView }> = ({ c }) => {
+  const isImage = Boolean(
+    c.isImage ||
+    (c.media?.container && ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(c.media.container.toLowerCase())) ||
+    (c.media?.codec && ['mjpeg', 'jpeg', 'png', 'webp', 'bmp'].includes(c.media.codec.toLowerCase()))
+  );
+  return (
+    <Card>
+      <CardHeader title="Media" icon={isImage ? <ImageIcon className="h-4 w-4" /> : <Film className="h-4 w-4" />} />
+      <div className="divide-y divide-border px-4">
+        <Row label="Type">{isImage ? 'Static Image' : 'Video'}</Row>
+        <Row label="Resolution">{c.media ? `${c.media.width} × ${c.media.height}` : '—'}</Row>
+        <Row label="Duration / fps">{c.media ? (isImage ? 'Single Frame (Static Image)' : `${c.media.durationS.toFixed(1)} s · ${c.media.fps.toFixed(0)} fps`) : '—'}</Row>
+        <Row label="Format">{c.media ? `${c.media.codec.toUpperCase()} / ${c.media.container.toUpperCase()}` : '—'}</Row>
+        <Row label="SHA-256">{c.media?.sha256 ? <HashText value={c.media.sha256} /> : '—'}</Row>
+      </div>
+    </Card>
+  );
+};
 
 export const ReceiptPanel: React.FC<{ c: CaseView; onDownload: () => void; onVerify: () => void }> = ({ c, onDownload, onVerify }) => (
   <Card>

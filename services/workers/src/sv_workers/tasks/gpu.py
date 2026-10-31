@@ -91,7 +91,15 @@ async def _async_gpu(
     except Exception:
         pass
 
-    media_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.mp4")
+    media_path = None
+    for ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".mp4", ".mov", ".webm", ".mkv"]:
+        candidate = os.path.join(tempfile.gettempdir(), f"{analysis_id}{ext}")
+        if os.path.isfile(candidate):
+            media_path = candidate
+            break
+    if not media_path:
+        media_path = os.path.join(tempfile.gettempdir(), f"{analysis_id}.mp4")
+
     source_frames: list[np.ndarray] | None = None
     source_frame_indices: list[int] | None = None
     vid_width = 1280
@@ -106,6 +114,10 @@ async def _async_gpu(
             cap.release()
             if w > 0 and h > 0:
                 vid_width, vid_height = w, h
+            else:
+                img = cv2.imread(media_path)
+                if img is not None:
+                    vid_height, vid_width = img.shape[:2]
         except Exception:
             pass
 
@@ -231,19 +243,36 @@ async def _async_gpu(
             )
             session.add(trk_model)
 
-        # Store decisive evidence_root in analysis.signals if available
+        # Extract full-frame keyframes and run SwinV2 generative detector (SPEC §9)
+        from sv_engine.preprocess.keyframes import extract_video_keyframes
+        from sv_fusion.swinv2 import get_swinv2_detector
+
+        gen_summary = {"enabled": False, "max": 0.0, "mean": 0.0, "flagged": False, "keyframes": []}
+        if os.path.exists(media_path):
+            try:
+                keyframes = extract_video_keyframes(media_path, max_keyframes=8, interval_s=1.0)
+                if keyframes:
+                    swinv2 = get_swinv2_detector()
+                    gen_summary = swinv2.predict_keyframes(keyframes, threshold=0.65)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("SwinV2 keyframe inference failed: %s", exc)
+
+        # Store decisive evidence_root and SwinV2 generative signals in analysis.signals
+        stmt_curr = select(AnalysisModel.signals).where(AnalysisModel.id == analysis_id)
+        res_curr = await session.execute(stmt_curr)
+        curr_sig_str = res_curr.scalar()
+        curr_sig = json.loads(curr_sig_str) if curr_sig_str else {}
         if decisive_ev_root:
-            stmt_curr = select(AnalysisModel.signals).where(AnalysisModel.id == analysis_id)
-            res_curr = await session.execute(stmt_curr)
-            curr_sig_str = res_curr.scalar()
-            curr_sig = json.loads(curr_sig_str) if curr_sig_str else {}
             curr_sig["evidence_root"] = decisive_ev_root
-            stmt_up = (
-                update(AnalysisModel)
-                .where(AnalysisModel.id == analysis_id)
-                .values(signals=json.dumps(curr_sig))
-            )
-            await session.execute(stmt_up)
+        curr_sig["generative_image"] = gen_summary
+
+        stmt_up = (
+            update(AnalysisModel)
+            .where(AnalysisModel.id == analysis_id)
+            .values(signals=json.dumps(curr_sig))
+        )
+        await session.execute(stmt_up)
 
         await session.commit()
 

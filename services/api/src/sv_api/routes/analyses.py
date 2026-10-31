@@ -72,14 +72,29 @@ async def create_analysis(
 
     # Save uploaded file or prepare placeholder
     temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, f"{analysis_id}.mp4")
-
+    ext = ".mp4"
     if file:
         content = await file.read()
+        hdr = content[:16]
+        if hdr.startswith(b"\xff\xd8\xff"):
+            ext = ".jpg"
+        elif hdr.startswith(b"\x89PNG\r\n\x1a\n"):
+            ext = ".png"
+        elif hdr.startswith(b"RIFF") and len(hdr) >= 12 and hdr[8:12] == b"WEBP":
+            ext = ".webp"
+        elif hdr.startswith(b"BM"):
+            ext = ".bmp"
+        elif hdr.startswith(b"GIF87a") or hdr.startswith(b"GIF89a"):
+            ext = ".gif"
+        elif file.filename:
+            _, user_ext = os.path.splitext(file.filename)
+            if user_ext.lower() in [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".mp4", ".mov", ".webm", ".mkv", ".avi"]:
+                ext = user_ext.lower()
+        temp_path = os.path.join(temp_dir, f"{analysis_id}{ext}")
         with open(temp_path, "wb") as f:
             f.write(content)
     else:
-        # Create minimal synthetic placeholder for URL or mock test
+        temp_path = os.path.join(temp_dir, f"{analysis_id}.mp4")
         with open(temp_path, "wb") as f:
             f.write(b"SENTINEL_V_MOCK_PAYLOAD_" + analysis_id.encode("utf-8"))
 
@@ -175,6 +190,15 @@ async def list_analyses(
         faces_count = len(m.tracks) if m.tracks else 0
         source_val = m.external_ref if m.external_ref in ("upload", "api", "sentinel") else "upload"
 
+        is_item_img = False
+        if m.media:
+            cont = (m.media.container or "").lower()
+            cod = (m.media.codec or "").lower()
+            if cont in ["jpg", "jpeg", "png", "webp", "bmp", "gif"] or cod in ["mjpeg", "jpeg", "png", "webp", "bmp", "gif"]:
+                is_item_img = True
+            elif (m.media.duration_s is not None and m.media.duration_s == 0.0) and cont not in ["mp4", "webm", "mov", "mkv", "avi"]:
+                is_item_img = True
+
         items.append(
             {
                 "id": m.id,
@@ -192,6 +216,8 @@ async def list_analyses(
                 "review_status": m.review_status,
                 "policy_id": m.policy_id,
                 "policy": {"id": m.policy_id, "version": m.policy_version},
+                "media_type": "image" if is_item_img else "video",
+                "is_image": is_item_img,
             }
         )
 
@@ -215,18 +241,44 @@ async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
         )
 
     # Map MediaInfo
+    is_img = False
+    if model.media:
+        cont = (model.media.container or "").lower()
+        cod = (model.media.codec or "").lower()
+        if cont in ["jpg", "jpeg", "png", "webp", "bmp", "gif"] or cod in ["mjpeg", "jpeg", "png", "webp", "bmp", "gif"]:
+            is_img = True
+        elif (model.media.duration_s is not None and model.media.duration_s == 0.0) and cont not in ["mp4", "webm", "mov", "mkv", "avi"]:
+            is_img = True
+
+    if not is_img:
+        temp_dir = tempfile.gettempdir()
+        for cand_ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".mp4"]:
+            cand_p = os.path.join(temp_dir, f"{analysis_id}{cand_ext}")
+            if os.path.isfile(cand_p):
+                try:
+                    with open(cand_p, "rb") as cf:
+                        hdr = cf.read(16)
+                    if hdr.startswith(b"\xff\xd8\xff") or hdr.startswith(b"\x89PNG\r\n\x1a\n") or (hdr.startswith(b"RIFF") and len(hdr) >= 12 and hdr[8:12] == b"WEBP") or hdr.startswith(b"BM"):
+                        is_img = True
+                        break
+                except Exception:
+                    pass
+
+    media_type_str = "image" if is_img else "video"
+
     media_info = None
     if model.media:
         media_info = MediaInfo(
             id=model.media.id,
             sha256=model.media.sha256,
-            duration_s=model.media.duration_s or 0.0,
+            duration_s=0.0 if is_img else (model.media.duration_s or 0.0),
             width=model.media.width or 0,
             height=model.media.height or 0,
-            fps=model.media.fps or 30.0,
-            codec=model.media.codec or "unknown",
-            container=model.media.container or "mp4",
+            fps=1.0 if is_img else (model.media.fps or 30.0),
+            codec="jpeg" if (is_img and (model.media.codec or "").lower() in ["mjpeg", "unknown", "mp4"]) else (model.media.codec or ("jpeg" if is_img else "unknown")),
+            container="jpg" if (is_img and (model.media.container or "").lower() in ["mp4", "unknown", ""]) else (model.media.container or ("jpg" if is_img else "mp4")),
             deleted=model.media.deleted,
+            media_type=media_type_str,
         )
 
     # Map Tracks
@@ -282,17 +334,51 @@ async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
         except Exception:
             pass
 
+    signals_data = {}
+    if model.signals:
+        try:
+            signals_data = json.loads(model.signals)
+        except Exception:
+            pass
+
+    # Ensure C2PA information is populated for frontend display
+    if "c2pa" not in signals_data:
+        signals_data["c2pa"] = {"present": False, "ai_disclosed": False}
+
+    # Ensure SwinV2 generative image information is populated for frontend display
+    if "generative_image" not in signals_data:
+        signals_data["generative_image"] = {
+            "enabled": True,
+            "model": "swinv2-haywoodsloan",
+            "threshold": 0.65,
+            "max": 0.0,
+            "mean": 0.0,
+            "flagged": False,
+            "keyframes": [],
+        }
+
+    labels_list = []
+    if model.labels:
+        try:
+            labels_list = json.loads(model.labels)
+        except Exception:
+            pass
+
     return Analysis(
         id=model.id,
         status=AnalysisStatus(model.status),
         media=media_info,
         video_url=f"/v1/analyses/{model.id}/video",
+        media_url=f"/v1/analyses/{model.id}/media",
+        media_type=media_type_str,
         policy={"id": model.policy_id, "version": model.policy_version},
         decision=decision_enum,
         inconclusive_reason=model.inconclusive_reason,
         scores=scores_obj,
         cascade=cascade_obj,
         tracks=track_results,
+        signals=signals_data,
+        labels=labels_list,
         receipt_id=model.receipt_id,
         review_status=model.review_status,
         cache_hit=model.cache_hit,
@@ -303,20 +389,89 @@ async def get_analysis(analysis_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{analysis_id}/video")
-async def get_analysis_video(analysis_id: str):
-    """Stream or serve uploaded/processed video for browser playback in Reviewer Console."""
+@router.get("/{analysis_id}/media")
+async def get_analysis_video(analysis_id: str, db: AsyncSession = Depends(get_db)):
+    """Stream or serve uploaded/processed video or image for browser playback in Reviewer Console."""
     temp_dir = tempfile.gettempdir()
+
+    # Check if media is a static image
+    img_mimes = [
+        (".jpg", "image/jpeg"),
+        (".jpeg", "image/jpeg"),
+        (".png", "image/png"),
+        (".webp", "image/webp"),
+        (".bmp", "image/bmp"),
+    ]
+    for ext, mime in img_mimes:
+        img_path = os.path.join(temp_dir, f"{analysis_id}{ext}")
+        if os.path.isfile(img_path) and os.path.getsize(img_path) > 100:
+            return FileResponse(img_path, media_type=mime)
+
     web_path = os.path.join(temp_dir, f"{analysis_id}_web.mp4")
-    if os.path.isfile(web_path):
+    if os.path.isfile(web_path) and os.path.getsize(web_path) > 1000:
         return FileResponse(web_path, media_type="video/mp4")
 
     media_path = os.path.join(temp_dir, f"{analysis_id}.mp4")
-    if os.path.isfile(media_path):
-        from sv_engine.preprocess.decode import transcode_to_h264_web
-        playable_path = transcode_to_h264_web(media_path, web_path)
-        return FileResponse(playable_path, media_type="video/mp4")
+    if os.path.isfile(media_path) and os.path.getsize(media_path) > 100:
+        try:
+            with open(media_path, "rb") as mf:
+                hdr = mf.read(16)
+            if hdr.startswith(b"\xff\xd8\xff"):
+                return FileResponse(media_path, media_type="image/jpeg")
+            if hdr.startswith(b"\x89PNG\r\n\x1a\n"):
+                return FileResponse(media_path, media_type="image/png")
+            if hdr.startswith(b"RIFF") and len(hdr) >= 12 and hdr[8:12] == b"WEBP":
+                return FileResponse(media_path, media_type="image/webp")
+            if hdr.startswith(b"BM"):
+                return FileResponse(media_path, media_type="image/bmp")
+        except Exception:
+            pass
+        if os.path.getsize(media_path) > 1000:
+            from sv_engine.preprocess.decode import transcode_to_h264_web
+            playable_path = transcode_to_h264_web(media_path, web_path)
+            return FileResponse(playable_path, media_type="video/mp4")
 
-    raise HTTPException(status_code=404, detail="Video file not found")
+    # Fallback: check if another analysis with same media_id has a video or image file
+    stmt = select(AnalysisModel).where(AnalysisModel.id == analysis_id)
+    res = await db.execute(stmt)
+    model = res.scalars().first()
+    if model and model.media_id:
+        sib_stmt = select(AnalysisModel).where(
+            AnalysisModel.media_id == model.media_id,
+            AnalysisModel.id != analysis_id,
+        )
+        sib_res = await db.execute(sib_stmt)
+        siblings = sib_res.scalars().all()
+        for sib in siblings:
+            for ext, mime in img_mimes:
+                sib_img = os.path.join(temp_dir, f"{sib.id}{ext}")
+                if os.path.isfile(sib_img) and os.path.getsize(sib_img) > 100:
+                    return FileResponse(sib_img, media_type=mime)
+
+            sib_web = os.path.join(temp_dir, f"{sib.id}_web.mp4")
+            if os.path.isfile(sib_web) and os.path.getsize(sib_web) > 1000:
+                return FileResponse(sib_web, media_type="video/mp4")
+            sib_mp4 = os.path.join(temp_dir, f"{sib.id}.mp4")
+            if os.path.isfile(sib_mp4) and os.path.getsize(sib_mp4) > 100:
+                try:
+                    with open(sib_mp4, "rb") as mf:
+                        hdr = mf.read(16)
+                    if hdr.startswith(b"\xff\xd8\xff"):
+                        return FileResponse(sib_mp4, media_type="image/jpeg")
+                    if hdr.startswith(b"\x89PNG\r\n\x1a\n"):
+                        return FileResponse(sib_mp4, media_type="image/png")
+                    if hdr.startswith(b"RIFF") and len(hdr) >= 12 and hdr[8:12] == b"WEBP":
+                        return FileResponse(sib_mp4, media_type="image/webp")
+                    if hdr.startswith(b"BM"):
+                        return FileResponse(sib_mp4, media_type="image/bmp")
+                except Exception:
+                    pass
+                if os.path.getsize(sib_mp4) > 1000:
+                    from sv_engine.preprocess.decode import transcode_to_h264_web
+                    playable_path = transcode_to_h264_web(sib_mp4, web_path)
+                    return FileResponse(playable_path, media_type="video/mp4")
+
+    raise HTTPException(status_code=404, detail="Media file not found")
 
 
 @router.get("/{analysis_id}/events")

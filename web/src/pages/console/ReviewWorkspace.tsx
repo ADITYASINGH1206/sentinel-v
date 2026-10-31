@@ -198,7 +198,9 @@ export const ReviewWorkspace: React.FC = () => {
         <section className="flex min-w-0 flex-col gap-4" aria-label="Evidence">
           <EvidencePlayer
             videoUrl={c.videoUrl}
-              videoSources={c.videoSources}
+            videoSources={c.videoSources}
+            initialDuration={c.media?.durationS}
+            isImage={Boolean(c.isImage || (c.media?.container && ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(c.media.container.toLowerCase())))}
             tracks={c.tracks}
             selectedTrackIdx={track}
             onSelectTrack={setTrack}
@@ -208,16 +210,18 @@ export const ReviewWorkspace: React.FC = () => {
             fps={c.media?.fps ?? 30}
             demo={c.isDemo}
           />
-          <ClipTimeline
-            tracks={c.tracks}
-            selectedTrackIdx={track}
-            currentTime={time}
-            duration={c.media?.durationS ?? 0}
-            tau={tauHigh}
-            tauLow={tauLow}
-            fps={c.media?.fps ?? 30}
-            onSeek={(t) => setSeek((prev) => (prev === t ? t + 1e-6 : t))}
-          />
+          {!c.isImage && !['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(c.media?.container?.toLowerCase() ?? '') && (
+            <ClipTimeline
+              tracks={c.tracks}
+              selectedTrackIdx={track}
+              currentTime={time}
+              duration={c.media?.durationS ?? 0}
+              tau={tauHigh}
+              tauLow={tauLow}
+              fps={c.media?.fps ?? 30}
+              onSeek={(t) => setSeek((prev) => (prev === t ? t + 1e-6 : t))}
+            />
+          )}
           <Card className="p-4">
             {c.pBal != null ? <ScoreReadout p_bal={c.pBal} p_prior={c.pPrior ?? undefined} prior_prevalence={c.priorPrevalence} size="md" /> : <p className="text-sm text-muted">No score.</p>}
           </Card>
