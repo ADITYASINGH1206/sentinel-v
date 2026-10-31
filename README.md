@@ -96,14 +96,15 @@ VeriFrame is a video deepfake screening platform and reviewer console built on t
 ```bash
 # Clone and enter repository
 git clone https://github.com/ADITYASINGH1206/veriframe.git
-cd sentinel-v
+cd veriframe
 
 # Initialize development environment
 make dev
 ```
 
 Visit the services:
-- **Home page and Reviewer Console:** [http://localhost:5173](http://localhost:5173) (console at `/app`, public verifier at `/verify`)
+- **Live Hosted Web Console (Vercel):** [https://veriframe-ai.vercel.app](https://veriframe-ai.vercel.app) (console at `/app`, public verifier at `/verify`)
+- **Local Reviewer Console:** [http://localhost:5173](http://localhost:5173)
 - **API Gateway & Swagger Docs:** [http://localhost:8080/docs](http://localhost:8080/docs)
 - **MinIO Storage Console:** [http://localhost:9001](http://localhost:9001)
 
